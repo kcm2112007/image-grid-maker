@@ -1,6 +1,5 @@
 import 'dart:io';
-import 'package:flutter/material.dart';
-import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:flutter/material.dart'; 
 import '../app.dart';
 import '../models/canvas_ratio.dart';
 import '../models/grid_layout.dart';
