@@ -102,4 +102,20 @@ class RecentProjectsService {
 
     await _writeManifest(updated);
   }
+  /// Removes a single project: deletes its copied photo file and
+  /// removes its entry from the manifest.
+  Future<void> deleteProject(String id) async {
+    final current = await loadAll();
+    final target = current.where((p) => p.id == id).toList();
+
+    for (final project in target) {
+      final file = File(project.imagePath);
+      if (await file.exists()) {
+        await file.delete();
+      }
+    }
+
+    final updated = current.where((p) => p.id != id).toList();
+    await _writeManifest(updated);
+  }
 }
