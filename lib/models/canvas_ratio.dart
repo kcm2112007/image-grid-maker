@@ -16,6 +16,10 @@ class CanvasRatioOption {
 
 const List<CanvasRatioOption> kCanvasRatios = [
   CanvasRatioOption(id: 'square', label: 'Square', ratio: 1.0),
-  CanvasRatioOption(id: '3x4', label: '3:4', ratio: 3 / 4),
   CanvasRatioOption(id: '4x5', label: '4:5', ratio: 4 / 5),
+  CanvasRatioOption(id: '3x4', label: '3:4', ratio: 3 / 4),
+  CanvasRatioOption(id: '2x3', label: '2:3', ratio: 2 / 3),
+  CanvasRatioOption(id: '9x16', label: '9:16', ratio: 9 / 16),
+  CanvasRatioOption(id: '16x9', label: '16:9', ratio: 16 / 9),
+  CanvasRatioOption(id: '1.91x1', label: '1.91:1', ratio: 1.91),
 ];
