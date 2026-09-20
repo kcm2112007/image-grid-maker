@@ -1,5 +1,5 @@
 import 'dart:io';
-import 'package:flutter/material.dart'; 
+import 'package:flutter/material.dart';
 import '../app.dart';
 import '../models/canvas_ratio.dart';
 import '../models/grid_layout.dart';
@@ -58,6 +58,31 @@ class _HomeScreenState extends State<HomeScreen> {
     ).then((_) => _loadRecentProjects());
   }
 
+  Future<void> _confirmDeleteProject(RecentProject project) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Remove project?'),
+        content: const Text('This only removes it from your recent list — it does not delete any photo saved to your gallery.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Remove'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true) {
+      await _recentProjectsService.deleteProject(project.id);
+      _loadRecentProjects();
+    }
+  }
+
   String _labelFor(RecentProject project) {
     final ratio = kCanvasRatios.firstWhere(
       (r) => r.id == project.ratioId,
@@ -111,7 +136,6 @@ class _HomeScreenState extends State<HomeScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    // Hero section
                     Container(
                       padding: const EdgeInsets.symmetric(vertical: 28, horizontal: 20),
                       decoration: BoxDecoration(
@@ -163,6 +187,15 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
                     const SizedBox(height: 28),
                     Text('Recent projects', style: Theme.of(context).textTheme.titleMedium),
+                    if (_recentProjects.isNotEmpty) ...[
+                      const SizedBox(height: 4),
+                      Text(
+                        'Tap to reopen · long-press to remove',
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                              color: colorScheme.outline,
+                            ),
+                      ),
+                    ],
                     const SizedBox(height: 12),
                   ],
                 ),
@@ -215,6 +248,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         elevation: 1,
                         child: InkWell(
                           onTap: () => _reopenProject(project),
+                          onLongPress: () => _confirmDeleteProject(project),
                           child: Column(
                             children: [
                               Expanded(
