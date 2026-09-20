@@ -65,8 +65,9 @@ class _TilePreviewScreenState extends State<TilePreviewScreen> {
     }
 
     final xFiles = result.files.map((f) => XFile(f.path)).toList();
-    await SharePlus.instance.share(
-      ShareParams(files: xFiles, text: 'Split into ${widget.tiles.length} tiles with Image Grid Maker'),
+    await Share.shareXFiles(
+      xFiles,
+      text: 'Split into ${widget.tiles.length} tiles with Image Grid Maker',
     );
   }
 
