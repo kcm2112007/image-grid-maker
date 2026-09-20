@@ -167,7 +167,10 @@ class _TilePreviewScreenState extends State<TilePreviewScreen> {
                       : const Icon(Icons.download_outlined),
                   label: const Padding(
                     padding: EdgeInsets.symmetric(vertical: 10),
-                    child: Text('Save to Gallery'),
+                    child: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Text('Save to Gallery', maxLines: 1),
+                    ),
                   ),
                 ),
               ),
