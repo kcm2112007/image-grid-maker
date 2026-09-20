@@ -29,9 +29,4 @@ const List<SocialLink> kSocialLinks = [
     url: 'https://www.facebook.com/share/1Ew1TbBSwZ/',
     icon: FontAwesomeIcons.facebook,
   ),
-  SocialLink(
-    label: 'Threads',
-    url: 'https://www.threads.com/@goodx_official',
-    icon: FontAwesomeIcons.at, // Threads has no dedicated icon in this package yet
-  ),
 ];
