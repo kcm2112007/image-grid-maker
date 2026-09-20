@@ -4,6 +4,7 @@ import '../models/canvas_ratio.dart';
 import '../models/grid_layout.dart';
 import '../services/image_service.dart';
 import '../widgets/layout_selector.dart';
+import '../widgets/live_grid_preview.dart';
 import '../widgets/ratio_selector.dart';
 import 'framing_screen.dart';
 
@@ -81,7 +82,7 @@ class _GridEditorScreenState extends State<GridEditorScreen> {
     return Scaffold(
       appBar: AppBar(title: const Text('Create Grid')),
       body: SafeArea(
-        child: Padding(
+        child: SingleChildScrollView(
           padding: const EdgeInsets.all(20),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -113,10 +114,18 @@ class _GridEditorScreenState extends State<GridEditorScreen> {
                 textAlign: TextAlign.center,
                 style: Theme.of(context).textTheme.bodyMedium,
               ),
-              const Spacer(),
-              Icon(Icons.grid_view_rounded,
-                  size: 96, color: Theme.of(context).colorScheme.outlineVariant),
-              const Spacer(),
+              const SizedBox(height: 20),
+              Center(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 320, maxHeight: 420),
+                  child: LiveGridPreview(
+                    aspectRatio: _ratio.ratio,
+                    rows: _layout.rows,
+                    columns: _layout.columns,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 24),
               FilledButton.icon(
                 onPressed: _isPicking ? null : _pickAndFrame,
                 icon: _isPicking
