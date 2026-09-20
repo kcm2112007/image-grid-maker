@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import '../models/grid_layout.dart';
 import '../services/image_slicer_service.dart';
 import '../widgets/grid_overlay_painter.dart';
