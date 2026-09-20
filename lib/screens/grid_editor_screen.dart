@@ -1,11 +1,9 @@
-import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:permission_handler/permission_handler.dart';
 import '../models/grid_layout.dart';
 import '../services/image_service.dart';
-import '../utils/constants.dart';
 import '../widgets/layout_selector.dart';
-import '../widgets/selected_image_tile.dart';
+import 'framing_screen.dart';
 
 class GridEditorScreen extends StatefulWidget {
   const GridEditorScreen({super.key});
@@ -16,27 +14,34 @@ class GridEditorScreen extends StatefulWidget {
 
 class _GridEditorScreenState extends State<GridEditorScreen> {
   final ImageService _imageService = ImageService();
-  final List<File> _images = [];
   GridLayoutOption _layout = kGridLayouts[1]; // default 2x2
   bool _isPicking = false;
 
-  Future<void> _pickImages() async {
+  Future<void> _pickAndFrame() async {
     setState(() => _isPicking = true);
-    final remaining = kMaxImages - _images.length;
-    final result = await _imageService.pickImages(remainingSlots: remaining);
+    final result = await _imageService.pickSingleImage();
     setState(() => _isPicking = false);
 
     if (!mounted) return;
 
-    if (result.images.isNotEmpty) {
-      setState(() => _images.addAll(result.images));
-    }
-
     if (result.error == 'PERMISSION_DENIED') {
       _showPermissionDeniedDialog();
-    } else if (result.error != null) {
+      return;
+    }
+
+    if (result.error != null) {
       ScaffoldMessenger.of(context)
           .showSnackBar(SnackBar(content: Text(result.error!)));
+      return;
+    }
+
+    if (result.image != null) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => FramingScreen(image: result.image!, layout: _layout),
+        ),
+      );
     }
   }
 
@@ -46,7 +51,7 @@ class _GridEditorScreenState extends State<GridEditorScreen> {
       builder: (_) => AlertDialog(
         title: const Text('Photo access needed'),
         content: const Text(
-            'Image Grid Maker needs permission to read your photos so you can add them to a grid.'),
+            'Image Grid Maker needs permission to read your photos so you can split one into a grid.'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
@@ -64,100 +69,50 @@ class _GridEditorScreenState extends State<GridEditorScreen> {
     );
   }
 
-  void _removeAt(int index) {
-    setState(() => _images.removeAt(index));
-  }
-
   @override
   Widget build(BuildContext context) {
-    final atLimit = _images.length >= kMaxImages;
-
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Create Grid'),
-        actions: [
-          Padding(
-            padding: const EdgeInsets.only(right: 16),
-            child: Center(
-              child: Text('${_images.length}/$kMaxImages',
-                  style: Theme.of(context).textTheme.bodyMedium),
-            ),
-          ),
-        ],
-      ),
-      body: Column(
-        children: [
-          const SizedBox(height: 12),
-          LayoutSelector(
-            selected: _layout,
-            onChanged: (l) => setState(() => _layout = l),
-          ),
-          const SizedBox(height: 12),
-          Expanded(
-            child: _images.isEmpty
-                ? Center(
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(Icons.image_search_outlined,
-                            size: 48, color: Theme.of(context).colorScheme.outline),
-                        const SizedBox(height: 8),
-                        Text('No images yet',
-                            style: Theme.of(context).textTheme.titleMedium),
-                        const SizedBox(height: 4),
-                        Text('Tap "Add Images" to get started',
-                            style: TextStyle(color: Theme.of(context).colorScheme.outline)),
-                      ],
-                    ),
-                  )
-                : Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 12),
-                    child: GridView.builder(
-                      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                        crossAxisCount: _layout.columns,
-                        crossAxisSpacing: 6,
-                        mainAxisSpacing: 6,
-                      ),
-                      itemCount: _layout.cellCount,
-                      itemBuilder: (context, index) {
-                        if (index >= _images.length) {
-                          return Container(
-                            decoration: BoxDecoration(
-                              border: Border.all(
-                                  color: Theme.of(context).colorScheme.outlineVariant),
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                            child: Icon(Icons.add,
-                                color: Theme.of(context).colorScheme.outline),
-                          );
-                        }
-                        return SelectedImageTile(
-                          file: _images[index],
-                          onRemove: () => _removeAt(index),
-                          onLoadError: () => _removeAt(index),
-                        );
-                      },
-                    ),
-                  ),
-          ),
-          SafeArea(
-            top: false,
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: FilledButton.icon(
-                onPressed: (_isPicking || atLimit) ? null : _pickImages,
+      appBar: AppBar(title: const Text('Create Grid')),
+      body: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(
+                'Choose how many pieces to split your photo into',
+                textAlign: TextAlign.center,
+                style: Theme.of(context).textTheme.titleMedium,
+              ),
+              const SizedBox(height: 20),
+              LayoutSelector(
+                selected: _layout,
+                onChanged: (l) => setState(() => _layout = l),
+              ),
+              const SizedBox(height: 12),
+              Text(
+                '${_layout.cellCount} tiles (${_layout.label})',
+                textAlign: TextAlign.center,
+                style: Theme.of(context).textTheme.bodyMedium,
+              ),
+              const Spacer(),
+              Icon(Icons.grid_view_rounded,
+                  size: 96, color: Theme.of(context).colorScheme.outlineVariant),
+              const Spacer(),
+              FilledButton.icon(
+                onPressed: _isPicking ? null : _pickAndFrame,
                 icon: _isPicking
                     ? const SizedBox(
                         width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
                     : const Icon(Icons.add_photo_alternate_outlined),
-                label: Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 10),
-                  child: Text(atLimit ? 'Maximum reached' : 'Add Images'),
+                label: const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 12),
+                  child: Text('Choose Photo', style: TextStyle(fontSize: 16)),
                 ),
               ),
-            ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }
