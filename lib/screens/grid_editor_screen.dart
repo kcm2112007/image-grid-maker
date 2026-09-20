@@ -7,6 +7,7 @@ import '../models/canvas_ratio.dart';
 import '../models/grid_layout.dart';
 import '../services/image_service.dart';
 import '../services/image_slicer_service.dart';
+import '../services/recent_projects_service.dart';
 import '../widgets/framing_canvas.dart';
 import '../widgets/layout_selector.dart';
 import '../widgets/live_grid_preview.dart';
@@ -14,7 +15,18 @@ import '../widgets/ratio_selector.dart';
 import 'tile_preview_screen.dart';
 
 class GridEditorScreen extends StatefulWidget {
-  const GridEditorScreen({super.key});
+  /// When reopening a past project, these pre-fill the editor with the
+  /// same photo, ratio, and grid instead of starting from scratch.
+  final File? initialImage;
+  final String? initialRatioId;
+  final String? initialLayoutId;
+
+  const GridEditorScreen({
+    super.key,
+    this.initialImage,
+    this.initialRatioId,
+    this.initialLayoutId,
+  });
 
   @override
   State<GridEditorScreen> createState() => _GridEditorScreenState();
@@ -22,14 +34,29 @@ class GridEditorScreen extends StatefulWidget {
 
 class _GridEditorScreenState extends State<GridEditorScreen> {
   final ImageService _imageService = ImageService();
+  final RecentProjectsService _recentProjectsService = RecentProjectsService();
   final TransformationController _transformController = TransformationController();
   final GlobalKey _captureKey = GlobalKey();
 
-  GridLayoutOption _layout = kGridLayouts[1]; // default 2x2
-  CanvasRatioOption _ratio = kCanvasRatios[0]; // default Square
+  late GridLayoutOption _layout;
+  late CanvasRatioOption _ratio;
   File? _pickedImage;
   bool _isPicking = false;
   bool _isProcessing = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _layout = kGridLayouts.firstWhere(
+      (l) => l.id == widget.initialLayoutId,
+      orElse: () => kGridLayouts[1],
+    );
+    _ratio = kCanvasRatios.firstWhere(
+      (r) => r.id == widget.initialRatioId,
+      orElse: () => kCanvasRatios[0],
+    );
+    _pickedImage = widget.initialImage;
+  }
 
   @override
   void dispose() {
@@ -56,7 +83,6 @@ class _GridEditorScreenState extends State<GridEditorScreen> {
     }
 
     if (result.image != null) {
-      // Reset any previous pan/zoom when a new photo is picked.
       _transformController.value = Matrix4.identity();
       setState(() => _pickedImage = result.image);
     }
@@ -80,6 +106,18 @@ class _GridEditorScreenState extends State<GridEditorScreen> {
         rows: _layout.rows,
         columns: _layout.columns,
       );
+
+      // Save this as a recent project so it can be reopened later.
+      // A failure here shouldn't block the user from seeing their tiles.
+      try {
+        await _recentProjectsService.saveProject(
+          sourceImage: _pickedImage!,
+          ratioId: _ratio.id,
+          layoutId: _layout.id,
+        );
+      } catch (_) {
+        // Non-critical — proceed to the preview regardless.
+      }
 
       if (!mounted) return;
 
@@ -167,9 +205,6 @@ class _GridEditorScreenState extends State<GridEditorScreen> {
                 style: Theme.of(context).textTheme.bodySmall,
               ),
               const SizedBox(height: 8),
-              // Once a photo is picked, this shows the real photo,
-              // pinch/pan-able. Before that, it shows an empty
-              // placeholder frame so the user can see the shape.
               Expanded(
                 child: Center(
                   child: hasImage
