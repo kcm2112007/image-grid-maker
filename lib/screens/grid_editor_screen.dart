@@ -232,7 +232,10 @@ class _GridEditorScreenState extends State<GridEditorScreen> {
                                 child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
                             : const Padding(
                                 padding: EdgeInsets.symmetric(vertical: 12),
-                                child: Text('Done Positioning'),
+                                child: FittedBox(
+                                  fit: BoxFit.scaleDown,
+                                  child: Text('Done Positioning', maxLines: 1),
+                                ),
                               ),
                       ),
                     ),
