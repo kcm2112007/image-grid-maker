@@ -3,12 +3,13 @@ import 'package:flutter/material.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:share_plus/share_plus.dart';
 import '../models/export_format.dart';
+import '../services/ad_service.dart';
 import '../services/export_service.dart';
 
 /// Shows the sliced tiles in their grid position, numbered in reading
 /// order (left-to-right, top-to-bottom), with real save-to-gallery and
-/// share actions, and a choice of export format (PNG or JPG with a
-/// quality slider).
+/// share actions, a choice of export format (PNG or JPG with a quality
+/// slider), and an interstitial ad shown after a successful export.
 class TilePreviewScreen extends StatefulWidget {
   final List<ui.Image> tiles;
   final int rows;
@@ -26,10 +27,23 @@ class TilePreviewScreen extends StatefulWidget {
 }
 
 class _TilePreviewScreenState extends State<TilePreviewScreen> {
+  final AdService _adService = AdService();
   bool _isSaving = false;
   bool _isSharing = false;
   ExportFormat _format = ExportFormat.png;
   double _quality = 90;
+
+  @override
+  void initState() {
+    super.initState();
+    _adService.preloadInterstitial();
+  }
+
+  @override
+  void dispose() {
+    _adService.dispose();
+    super.dispose();
+  }
 
   Future<void> _saveToGallery() async {
     setState(() => _isSaving = true);
@@ -51,6 +65,8 @@ class _TilePreviewScreenState extends State<TilePreviewScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Saved ${result.savedCount} tiles to your gallery.')),
       );
+      // Shown only after the user's actual task succeeded.
+      await _adService.showInterstitialIfReady();
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(result.error ?? 'Could not save tiles.')),
@@ -81,6 +97,9 @@ class _TilePreviewScreenState extends State<TilePreviewScreen> {
       xFiles,
       text: 'Split into ${widget.tiles.length} tiles with Image Grid Maker',
     );
+
+    if (!mounted) return;
+    await _adService.showInterstitialIfReady();
   }
 
   void _showPermissionDeniedDialog() {
