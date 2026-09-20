@@ -2,7 +2,9 @@ import 'dart:io';
 import 'dart:typed_data';
 import 'dart:ui' as ui;
 import 'package:gal/gal.dart';
+import 'package:image/image.dart' as img;
 import 'package:path_provider/path_provider.dart';
+import '../models/export_format.dart';
 
 /// Result of an export attempt. `error` is null on full success.
 /// `savedCount` tells the UI how many tiles actually succeeded, since
@@ -23,18 +25,49 @@ class ExportResult {
 }
 
 class ExportService {
-  /// Converts a ui.Image into PNG bytes.
-  static Future<Uint8List> _imageToPngBytes(ui.Image image) async {
-    final byteData = await image.toByteData(format: ui.ImageByteFormat.png);
-    if (byteData == null) {
-      throw Exception('Could not encode image to PNG.');
+  /// Converts a ui.Image into bytes in the requested format. For JPG,
+  /// [quality] (1-100) controls the lossy compression level; it is
+  /// ignored for PNG, which is always lossless.
+  static Future<Uint8List> _imageToBytes(
+    ui.Image image, {
+    required ExportFormat format,
+    int quality = 90,
+  }) async {
+    if (format == ExportFormat.png) {
+      final byteData = await image.toByteData(format: ui.ImageByteFormat.png);
+      if (byteData == null) {
+        throw Exception('Could not encode image to PNG.');
+      }
+      return byteData.buffer.asUint8List();
     }
-    return byteData.buffer.asUint8List();
+
+    // JPG path: dart:ui has no JPEG encoder, so we get raw RGBA pixels
+    // from the ui.Image and hand them to the `image` package to encode.
+    final rawByteData = await image.toByteData(format: ui.ImageByteFormat.rawRgba);
+    if (rawByteData == null) {
+      throw Exception('Could not read image pixels for JPG encoding.');
+    }
+
+    final rgba = rawByteData.buffer.asUint8List();
+    final decodedImage = img.Image.fromBytes(
+      width: image.width,
+      height: image.height,
+      bytes: rgba.buffer,
+      numChannels: 4,
+    );
+
+    final jpgBytes = img.encodeJpg(decodedImage, quality: quality);
+    return Uint8List.fromList(jpgBytes);
   }
 
-  /// Saves every tile directly to the device's photo gallery as PNG files,
-  /// numbered in the same reading order shown in the preview.
-  static Future<ExportResult> saveAllToGallery(List<ui.Image> tiles) async {
+  /// Saves every tile directly to the device's photo gallery, in the
+  /// requested format, numbered in the same reading order shown in
+  /// the preview.
+  static Future<ExportResult> saveAllToGallery(
+    List<ui.Image> tiles, {
+    required ExportFormat format,
+    int quality = 90,
+  }) async {
     int saved = 0;
     try {
       final hasAccess = await Gal.hasAccess();
@@ -50,7 +83,7 @@ class ExportService {
       }
 
       for (int i = 0; i < tiles.length; i++) {
-        final bytes = await _imageToPngBytes(tiles[i]);
+        final bytes = await _imageToBytes(tiles[i], format: format, quality: quality);
         await Gal.putImageBytes(
           bytes,
           name: 'image_grid_maker_tile_${i + 1}',
@@ -70,17 +103,20 @@ class ExportService {
     }
   }
 
-  /// Writes every tile to a temp folder as PNG files, so they can be
-  /// handed to the share sheet. Returns the file paths so the caller
-  /// (share_plus) can attach them.
-  static Future<ExportResult> prepareFilesForSharing(List<ui.Image> tiles) async {
+  /// Writes every tile to a temp folder in the requested format, so
+  /// they can be handed to the share sheet.
+  static Future<ExportResult> prepareFilesForSharing(
+    List<ui.Image> tiles, {
+    required ExportFormat format,
+    int quality = 90,
+  }) async {
     try {
       final tempDir = await getTemporaryDirectory();
       final files = <File>[];
 
       for (int i = 0; i < tiles.length; i++) {
-        final bytes = await _imageToPngBytes(tiles[i]);
-        final file = File('${tempDir.path}/tile_${i + 1}.png');
+        final bytes = await _imageToBytes(tiles[i], format: format, quality: quality);
+        final file = File('${tempDir.path}/tile_${i + 1}.${format.fileExtension}');
         await file.writeAsBytes(bytes);
         files.add(file);
       }
