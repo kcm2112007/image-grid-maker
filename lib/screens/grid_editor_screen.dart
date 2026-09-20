@@ -15,8 +15,6 @@ import '../widgets/ratio_selector.dart';
 import 'tile_preview_screen.dart';
 
 class GridEditorScreen extends StatefulWidget {
-  /// When reopening a past project, these pre-fill the editor with the
-  /// same photo, ratio, and grid instead of starting from scratch.
   final File? initialImage;
   final String? initialRatioId;
   final String? initialLayoutId;
@@ -107,8 +105,6 @@ class _GridEditorScreenState extends State<GridEditorScreen> {
         columns: _layout.columns,
       );
 
-      // Save this as a recent project so it can be reopened later.
-      // A failure here shouldn't block the user from seeing their tiles.
       try {
         await _recentProjectsService.saveProject(
           sourceImage: _pickedImage!,
@@ -172,112 +168,129 @@ class _GridEditorScreenState extends State<GridEditorScreen> {
     return Scaffold(
       appBar: AppBar(title: const Text('Create Grid')),
       body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Text(
-                'Canvas shape',
-                textAlign: TextAlign.center,
-                style: Theme.of(context).textTheme.titleSmall,
-              ),
-              const SizedBox(height: 6),
-              RatioSelector(
-                selected: _ratio,
-                onChanged: (r) => setState(() => _ratio = r),
-              ),
-              const SizedBox(height: 12),
-              Text(
-                'Split into',
-                textAlign: TextAlign.center,
-                style: Theme.of(context).textTheme.titleSmall,
-              ),
-              const SizedBox(height: 6),
-              LayoutSelector(
-                selected: _layout,
-                onChanged: (l) => setState(() => _layout = l),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                '${_layout.cellCount} tiles (${_layout.label})',
-                textAlign: TextAlign.center,
-                style: Theme.of(context).textTheme.bodySmall,
-              ),
-              const SizedBox(height: 8),
-              Expanded(
-                child: Center(
-                  child: hasImage
-                      ? FramingCanvas(
-                          image: _pickedImage!,
-                          aspectRatio: _ratio.ratio,
-                          rows: _layout.rows,
-                          columns: _layout.columns,
-                          captureKey: _captureKey,
-                          transformationController: _transformController,
-                        )
-                      : LiveGridPreview(
-                          aspectRatio: _ratio.ratio,
-                          rows: _layout.rows,
-                          columns: _layout.columns,
-                        ),
-                ),
-              ),
-              if (hasImage) ...[
-                const SizedBox(height: 8),
-                Text(
-                  'Pinch to zoom, drag to reposition.',
-                  textAlign: TextAlign.center,
-                  style: Theme.of(context).textTheme.bodySmall,
-                ),
-              ],
-              const SizedBox(height: 8),
-              if (!hasImage)
-                FilledButton.icon(
-                  onPressed: _isPicking ? null : _pickImage,
-                  icon: _isPicking
-                      ? const SizedBox(
-                          width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
-                      : const Icon(Icons.add_photo_alternate_outlined),
-                  label: const Padding(
-                    padding: EdgeInsets.symmetric(vertical: 12),
-                    child: Text('Choose Photo', style: TextStyle(fontSize: 16)),
-                  ),
-                )
-              else
-                Row(
+        child: Column(
+          children: [
+            // Everything above the buttons scrolls if the screen is
+            // too short to fit it all, so the action buttons below
+            // are never pushed off-screen or squeezed into overflow.
+            Expanded(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    Expanded(
-                      child: OutlinedButton(
-                        onPressed: _isProcessing ? null : _pickImage,
-                        child: const Padding(
-                          padding: EdgeInsets.symmetric(vertical: 12),
-                          child: Text('Change Photo'),
-                        ),
-                      ),
+                    Text(
+                      'Canvas shape',
+                      textAlign: TextAlign.center,
+                      style: Theme.of(context).textTheme.titleSmall,
                     ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: FilledButton(
-                        onPressed: _isProcessing ? null : _captureAndSlice,
-                        child: _isProcessing
-                            ? const SizedBox(
-                                width: 16,
-                                height: 16,
-                                child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                            : const Padding(
-                                padding: EdgeInsets.symmetric(vertical: 12),
-                                child: FittedBox(
-                                  fit: BoxFit.scaleDown,
-                                  child: Text('Done Positioning', maxLines: 1),
-                                ),
+                    const SizedBox(height: 6),
+                    RatioSelector(
+                      selected: _ratio,
+                      onChanged: (r) => setState(() => _ratio = r),
+                    ),
+                    const SizedBox(height: 12),
+                    Text(
+                      'Split into',
+                      textAlign: TextAlign.center,
+                      style: Theme.of(context).textTheme.titleSmall,
+                    ),
+                    const SizedBox(height: 6),
+                    LayoutSelector(
+                      selected: _layout,
+                      onChanged: (l) => setState(() => _layout = l),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      '${_layout.cellCount} tiles (${_layout.label})',
+                      textAlign: TextAlign.center,
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                    const SizedBox(height: 16),
+                    // Constrained rather than Expanded, since this
+                    // whole column now lives inside a scroll view.
+                    ConstrainedBox(
+                      constraints: const BoxConstraints(maxHeight: 420),
+                      child: Center(
+                        child: hasImage
+                            ? FramingCanvas(
+                                image: _pickedImage!,
+                                aspectRatio: _ratio.ratio,
+                                rows: _layout.rows,
+                                columns: _layout.columns,
+                                captureKey: _captureKey,
+                                transformationController: _transformController,
+                              )
+                            : LiveGridPreview(
+                                aspectRatio: _ratio.ratio,
+                                rows: _layout.rows,
+                                columns: _layout.columns,
                               ),
                       ),
                     ),
+                    if (hasImage) ...[
+                      const SizedBox(height: 8),
+                      Text(
+                        'Pinch to zoom, drag to reposition.',
+                        textAlign: TextAlign.center,
+                        style: Theme.of(context).textTheme.bodySmall,
+                      ),
+                    ],
                   ],
                 ),
-            ],
-          ),
+              ),
+            ),
+            // Fixed action row — always fully visible, never overflows.
+            SafeArea(
+              top: false,
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(20, 8, 20, 12),
+                child: !hasImage
+                    ? FilledButton.icon(
+                        onPressed: _isPicking ? null : _pickImage,
+                        icon: _isPicking
+                            ? const SizedBox(
+                                width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
+                            : const Icon(Icons.add_photo_alternate_outlined),
+                        label: const Padding(
+                          padding: EdgeInsets.symmetric(vertical: 12),
+                          child: Text('Choose Photo', style: TextStyle(fontSize: 16)),
+                        ),
+                      )
+                    : Row(
+                        children: [
+                          Expanded(
+                            child: OutlinedButton(
+                              onPressed: _isProcessing ? null : _pickImage,
+                              child: const Padding(
+                                padding: EdgeInsets.symmetric(vertical: 12),
+                                child: Text('Change Photo'),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: FilledButton(
+                              onPressed: _isProcessing ? null : _captureAndSlice,
+                              child: _isProcessing
+                                  ? const SizedBox(
+                                      width: 16,
+                                      height: 16,
+                                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                                  : const Padding(
+                                      padding: EdgeInsets.symmetric(vertical: 12),
+                                      child: FittedBox(
+                                        fit: BoxFit.scaleDown,
+                                        child: Text('Done Positioning', maxLines: 1),
+                                      ),
+                                    ),
+                            ),
+                          ),
+                        ],
+                      ),
+              ),
+            ),
+          ],
         ),
       ),
     );
