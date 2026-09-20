@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:permission_handler/permission_handler.dart';
+import '../models/canvas_ratio.dart';
 import '../models/grid_layout.dart';
 import '../services/image_service.dart';
 import '../widgets/layout_selector.dart';
+import '../widgets/ratio_selector.dart';
 import 'framing_screen.dart';
 
 class GridEditorScreen extends StatefulWidget {
@@ -15,6 +17,7 @@ class GridEditorScreen extends StatefulWidget {
 class _GridEditorScreenState extends State<GridEditorScreen> {
   final ImageService _imageService = ImageService();
   GridLayoutOption _layout = kGridLayouts[1]; // default 2x2
+  CanvasRatioOption _ratio = kCanvasRatios[0]; // default Square
   bool _isPicking = false;
 
   Future<void> _pickAndFrame() async {
@@ -39,7 +42,11 @@ class _GridEditorScreenState extends State<GridEditorScreen> {
       Navigator.push(
         context,
         MaterialPageRoute(
-          builder: (_) => FramingScreen(image: result.image!, layout: _layout),
+          builder: (_) => FramingScreen(
+            image: result.image!,
+            layout: _layout,
+            canvasRatio: _ratio,
+          ),
         ),
       );
     }
@@ -80,11 +87,22 @@ class _GridEditorScreenState extends State<GridEditorScreen> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               Text(
+                'Canvas shape',
+                textAlign: TextAlign.center,
+                style: Theme.of(context).textTheme.titleSmall,
+              ),
+              const SizedBox(height: 8),
+              RatioSelector(
+                selected: _ratio,
+                onChanged: (r) => setState(() => _ratio = r),
+              ),
+              const SizedBox(height: 20),
+              Text(
                 'Choose how many pieces to split your photo into',
                 textAlign: TextAlign.center,
                 style: Theme.of(context).textTheme.titleMedium,
               ),
-              const SizedBox(height: 20),
+              const SizedBox(height: 12),
               LayoutSelector(
                 selected: _layout,
                 onChanged: (l) => setState(() => _layout = l),
