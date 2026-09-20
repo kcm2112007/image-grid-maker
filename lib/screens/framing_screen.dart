@@ -2,20 +2,27 @@ import 'dart:io';
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
+import '../models/canvas_ratio.dart';
 import '../models/grid_layout.dart';
 import '../services/image_slicer_service.dart';
 import '../widgets/grid_overlay_painter.dart';
 import 'tile_preview_screen.dart';
 
-/// Lets the user pan and zoom their photo inside a frame shaped for the
-/// chosen grid, with live grid lines showing exactly where each tile
-/// boundary will fall. Since tiles are square, the frame's aspect ratio
-/// is columns:rows (e.g. a 3x4 grid needs a 4:3-shaped frame).
+/// Lets the user pan and zoom their photo inside a frame shaped by the
+/// chosen canvas ratio, with live grid lines showing where each tile
+/// boundary will fall. Since canvas ratio is independent of the grid's
+/// rows/columns, tiles are not guaranteed to be square.
 class FramingScreen extends StatefulWidget {
   final File image;
   final GridLayoutOption layout;
+  final CanvasRatioOption canvasRatio;
 
-  const FramingScreen({super.key, required this.image, required this.layout});
+  const FramingScreen({
+    super.key,
+    required this.image,
+    required this.layout,
+    required this.canvasRatio,
+  });
 
   @override
   State<FramingScreen> createState() => _FramingScreenState();
@@ -43,7 +50,6 @@ class _FramingScreenState extends State<FramingScreen> {
         throw Exception('Could not capture the framed photo.');
       }
 
-      // pixelRatio of 3 gives good tile quality without being excessive.
       final ui.Image composedImage = await boundary.toImage(pixelRatio: 3.0);
 
       final tiles = await ImageSlicerService.sliceImage(
@@ -76,11 +82,11 @@ class _FramingScreenState extends State<FramingScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final frameAspectRatio = widget.layout.columns / widget.layout.rows;
+    final frameAspectRatio = widget.canvasRatio.ratio;
 
     return Scaffold(
       appBar: AppBar(
-        title: Text('Position Photo — ${widget.layout.label}'),
+        title: Text('Position Photo — ${widget.canvasRatio.label}'),
       ),
       body: Column(
         children: [
