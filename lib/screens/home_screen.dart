@@ -272,7 +272,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           child: Tooltip(
                             message: link.label,
                             child: IconButton(
-                              icon: FaIcon(link.icon, size: 22),
+                              icon: Icon(link.icon, size: 24),
                               onPressed: () => _openLink(link.url),
                             ),
                           ),
