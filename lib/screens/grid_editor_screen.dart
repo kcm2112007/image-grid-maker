@@ -82,8 +82,8 @@ class _GridEditorScreenState extends State<GridEditorScreen> {
     return Scaffold(
       appBar: AppBar(title: const Text('Create Grid')),
       body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(20),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
@@ -92,32 +92,34 @@ class _GridEditorScreenState extends State<GridEditorScreen> {
                 textAlign: TextAlign.center,
                 style: Theme.of(context).textTheme.titleSmall,
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: 6),
               RatioSelector(
                 selected: _ratio,
                 onChanged: (r) => setState(() => _ratio = r),
               ),
-              const SizedBox(height: 20),
-              Text(
-                'Choose how many pieces to split your photo into',
-                textAlign: TextAlign.center,
-                style: Theme.of(context).textTheme.titleMedium,
-              ),
               const SizedBox(height: 12),
+              Text(
+                'Split into',
+                textAlign: TextAlign.center,
+                style: Theme.of(context).textTheme.titleSmall,
+              ),
+              const SizedBox(height: 6),
               LayoutSelector(
                 selected: _layout,
                 onChanged: (l) => setState(() => _layout = l),
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 4),
               Text(
                 '${_layout.cellCount} tiles (${_layout.label})',
                 textAlign: TextAlign.center,
-                style: Theme.of(context).textTheme.bodyMedium,
+                style: Theme.of(context).textTheme.bodySmall,
               ),
-              const SizedBox(height: 20),
-              Center(
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 320, maxHeight: 420),
+              const SizedBox(height: 8),
+              // Expanded lets the preview shrink to fill whatever space
+              // is left, instead of claiming a fixed size that could
+              // push the button off-screen on shorter devices.
+              Expanded(
+                child: Center(
                   child: LiveGridPreview(
                     aspectRatio: _ratio.ratio,
                     rows: _layout.rows,
@@ -125,7 +127,7 @@ class _GridEditorScreenState extends State<GridEditorScreen> {
                   ),
                 ),
               ),
-              const SizedBox(height: 24),
+              const SizedBox(height: 8),
               FilledButton.icon(
                 onPressed: _isPicking ? null : _pickAndFrame,
                 icon: _isPicking
