@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
+import '../widgets/banner_ad_widget.dart';
 import '../app.dart';
 import '../models/canvas_ratio.dart';
 import '../models/grid_layout.dart';
@@ -109,6 +110,10 @@ class _HomeScreenState extends State<HomeScreen> {
     final colorScheme = Theme.of(context).colorScheme;
 
     return Scaffold(
+      bottomNavigationBar: const SafeArea(
+        top: false,
+        child: BannerAdWidget(),
+      ),
       body: SafeArea(
         child: CustomScrollView(
           slivers: [
