@@ -1,5 +1,7 @@
-/// Describes one grid layout option (e.g. 2x2). Adding a new layout later
-/// is just adding one entry to `kGridLayouts` — nothing else changes.
+/// Describes one grid layout option. Columns are fixed at 3 to match
+/// Instagram's profile grid (which always shows 3 posts per row), so
+/// posting tiles in sequence lines up correctly. Only the row count
+/// varies, giving taller overall grids for more tiles.
 class GridLayoutOption {
   final String id;
   final String label;
@@ -17,9 +19,9 @@ class GridLayoutOption {
 }
 
 const List<GridLayoutOption> kGridLayouts = [
-  GridLayoutOption(id: '1x2', label: '1 × 2', rows: 1, columns: 2),
-  GridLayoutOption(id: '2x2', label: '2 × 2', rows: 2, columns: 2),
-  GridLayoutOption(id: '2x3', label: '2 × 3', rows: 2, columns: 3),
+  GridLayoutOption(id: '3x1', label: '3 × 1', rows: 1, columns: 3),
+  GridLayoutOption(id: '3x2', label: '3 × 2', rows: 2, columns: 3),
   GridLayoutOption(id: '3x3', label: '3 × 3', rows: 3, columns: 3),
-  GridLayoutOption(id: '3x4', label: '3 × 4', rows: 3, columns: 4),
+  GridLayoutOption(id: '3x4', label: '3 × 4', rows: 4, columns: 3),
+  GridLayoutOption(id: '3x5', label: '3 × 5', rows: 5, columns: 3),
 ];
