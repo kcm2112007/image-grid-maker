@@ -4,15 +4,15 @@ import 'grid_overlay_painter.dart';
 
 /// Displays the user's actual photo, pinch/pan-able inside a frame shaped
 /// by [aspectRatio], with grid lines for [rows] x [columns] drawn on top.
-/// This widget is purely for on-screen positioning — final tile
-/// generation reads [transformationController]'s matrix directly and
-/// recomputes the exact same crop mathematically, rather than
-/// capturing this widget's rendered pixels.
+/// Wrapped in a RepaintBoundary keyed by [captureKey] so the parent can
+/// capture exactly what's rendered on screen — this is the reliable,
+/// Flutter-native way to guarantee the export matches what the user sees.
 class FramingCanvas extends StatelessWidget {
   final File image;
   final double aspectRatio;
   final int rows;
   final int columns;
+  final GlobalKey captureKey;
   final TransformationController transformationController;
 
   const FramingCanvas({
@@ -21,6 +21,7 @@ class FramingCanvas extends StatelessWidget {
     required this.aspectRatio,
     required this.rows,
     required this.columns,
+    required this.captureKey,
     required this.transformationController,
   });
 
@@ -32,12 +33,15 @@ class FramingCanvas extends StatelessWidget {
         child: Stack(
           fit: StackFit.expand,
           children: [
-            InteractiveViewer(
-              transformationController: transformationController,
-              minScale: 0.5,
-              maxScale: 4.0,
-              boundaryMargin: const EdgeInsets.all(200),
-              child: Image.file(image, fit: BoxFit.cover),
+            RepaintBoundary(
+              key: captureKey,
+              child: InteractiveViewer(
+                transformationController: transformationController,
+                minScale: 0.5,
+                maxScale: 4.0,
+                boundaryMargin: const EdgeInsets.all(200),
+                child: Image.file(image, fit: BoxFit.cover),
+              ),
             ),
             IgnorePointer(
               child: CustomPaint(
