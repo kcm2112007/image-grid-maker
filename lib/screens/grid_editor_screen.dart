@@ -145,6 +145,7 @@ class _GridEditorScreenState extends State<GridEditorScreen> {
             tiles: tiles,
             rows: _layout.rows,
             columns: _layout.columns,
+            canvasAspectRatio: _ratio.ratio,
           ),
         ),
       );
