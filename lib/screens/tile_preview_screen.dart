@@ -10,17 +10,20 @@ import 'instagram_preview_screen.dart';
 /// Shows the sliced tiles in their grid position, numbered in reading
 /// order (left-to-right, top-to-bottom), with real save-to-gallery and
 /// share actions, a choice of export format (PNG or JPG with a quality
-/// slider), and an interstitial ad shown after a successful export.
+/// slider), a rewarded ad that unlocks max JPG quality, and an
+/// interstitial ad shown after a successful export.
 class TilePreviewScreen extends StatefulWidget {
   final List<ui.Image> tiles;
   final int rows;
   final int columns;
+  final double canvasAspectRatio;
 
   const TilePreviewScreen({
     super.key,
     required this.tiles,
     required this.rows,
     required this.columns,
+    required this.canvasAspectRatio,
   });
 
   @override
@@ -31,6 +34,7 @@ class _TilePreviewScreenState extends State<TilePreviewScreen> {
   final AdService _adService = AdService();
   bool _isSaving = false;
   bool _isSharing = false;
+  bool _isWatchingRewardedAd = false;
   ExportFormat _format = ExportFormat.png;
   double _quality = 90;
 
@@ -38,6 +42,7 @@ class _TilePreviewScreenState extends State<TilePreviewScreen> {
   void initState() {
     super.initState();
     _adService.preloadInterstitial();
+    _adService.preloadRewarded();
   }
 
   @override
@@ -66,11 +71,30 @@ class _TilePreviewScreenState extends State<TilePreviewScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Saved ${result.savedCount} tiles to your gallery.')),
       );
-      // Shown only after the user's actual task succeeded.
       await _adService.showInterstitialIfReady();
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(result.error ?? 'Could not save tiles.')),
+      );
+    }
+  }
+
+  Future<void> _watchAdForMaxQuality() async {
+    setState(() => _isWatchingRewardedAd = true);
+
+    await _adService.showRewardedIfReady(
+      onReward: () {
+        if (!mounted) return;
+        setState(() => _quality = 100);
+      },
+    );
+
+    if (!mounted) return;
+    setState(() => _isWatchingRewardedAd = false);
+
+    if (_quality == 100) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Max quality unlocked for this export!')),
       );
     }
   }
@@ -129,73 +153,95 @@ class _TilePreviewScreenState extends State<TilePreviewScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final showRewardButton = _format == ExportFormat.jpg &&
+        _quality < 100 &&
+        _adService.isRewardedReady;
+
+    // Each tile's true shape, derived from the canvas ratio the user
+    // actually chose — never hardcoded, so this is correct for every
+    // ratio and every grid size without special-casing any of them.
+    final cellAspectRatio =
+        widget.canvasAspectRatio * widget.rows / widget.columns;
+
     return Scaffold(
       appBar: AppBar(title: Text('Preview — ${widget.tiles.length} tiles')),
       body: Column(
         children: [
           Expanded(
-            child: Padding(
-              padding: const EdgeInsets.all(12),
-              child: GridView.builder(
-                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: widget.columns,
-                  crossAxisSpacing: 4,
-                  mainAxisSpacing: 4,
+            child: SingleChildScrollView(
+              child: Padding(
+                padding: const EdgeInsets.all(12),
+                child: Center(
+                  child: AspectRatio(
+                    aspectRatio: widget.canvasAspectRatio,
+                    child: GridView.builder(
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: widget.columns,
+                        crossAxisSpacing: 4,
+                        mainAxisSpacing: 4,
+                        childAspectRatio: cellAspectRatio,
+                      ),
+                      itemCount: widget.tiles.length,
+                      itemBuilder: (context, index) {
+                        return Stack(
+                          children: [
+                            Positioned.fill(
+                              child: RawImage(
+                                image: widget.tiles[index],
+                                fit: BoxFit.cover,
+                              ),
+                            ),
+                            Positioned(
+                              top: 4,
+                              left: 4,
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: Colors.black54,
+                                  borderRadius: BorderRadius.circular(4),
+                                ),
+                                child: Text(
+                                  '${index + 1}',
+                                  style: const TextStyle(color: Colors.white, fontSize: 12),
+                                ),
+                              ),
+                            ),
+                          ],
+                        );
+                      },
+                    ),
+                  ),
                 ),
-                itemCount: widget.tiles.length,
-                itemBuilder: (context, index) {
-                  return Stack(
-                    children: [
-                      Positioned.fill(
-                        child: RawImage(
-                          image: widget.tiles[index],
-                          fit: BoxFit.cover,
-                        ),
-                      ),
-                      Positioned(
-                        top: 4,
-                        left: 4,
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                          decoration: BoxDecoration(
-                            color: Colors.black54,
-                            borderRadius: BorderRadius.circular(4),
-                          ),
-                          child: Text(
-                            '${index + 1}',
-                            style: const TextStyle(color: Colors.white, fontSize: 12),
-                          ),
-                        ),
-                      ),
-                    ],
-                  );
-                },
               ),
             ),
           ),
           Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                child: OutlinedButton.icon(
-                  onPressed: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => InstagramPreviewScreen(
-                          tiles: widget.tiles,
-                          columns: widget.columns,
-                        ),
-                      ),
-                    );
-                  },
-                  icon: const Icon(Icons.grid_view_outlined),
-                  label: const Text('View Posting Order'),
-                ),
-              ),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: Row(
-                  children: [
-                    Text('Format:', style: Theme.of(context).textTheme.bodyMedium),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            child: OutlinedButton.icon(
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => InstagramPreviewScreen(
+                      tiles: widget.tiles,
+                      columns: widget.columns,
+                      rows: widget.rows,
+                      canvasAspectRatio: widget.canvasAspectRatio,
+                    ),
+                  ),
+                );
+              },
+              icon: const Icon(Icons.grid_view_outlined),
+              label: const Text('View Posting Order'),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Row(
+              children: [
+                Text('Format:', style: Theme.of(context).textTheme.bodyMedium),
                 const SizedBox(width: 12),
                 SegmentedButton<ExportFormat>(
                   segments: const [
@@ -210,7 +256,7 @@ class _TilePreviewScreenState extends State<TilePreviewScreen> {
               ],
             ),
           ),
-          if (_format == ExportFormat.jpg)
+          if (_format == ExportFormat.jpg) ...[
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16),
               child: Row(
@@ -230,6 +276,19 @@ class _TilePreviewScreenState extends State<TilePreviewScreen> {
                 ],
               ),
             ),
+            if (showRewardButton)
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: OutlinedButton.icon(
+                  onPressed: _isWatchingRewardedAd ? null : _watchAdForMaxQuality,
+                  icon: _isWatchingRewardedAd
+                      ? const SizedBox(
+                          width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
+                      : const Icon(Icons.play_circle_outline),
+                  label: const Text('Watch Ad for Max Quality'),
+                ),
+              ),
+          ],
           SafeArea(
             top: false,
             child: Padding(
