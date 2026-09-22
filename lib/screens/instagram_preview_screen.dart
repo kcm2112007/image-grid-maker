@@ -1,12 +1,14 @@
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
+import 'package:permission_handler/permission_handler.dart';
+import '../models/export_format.dart';
+import '../services/export_service.dart';
 
-/// A mockup of a social profile grid, showing how these tiles would
-/// look posted together. Since platforms like Instagram show the
-/// newest post first (top-left), tiles must be posted in reverse
-/// order — this screen says so plainly rather than implying the
-/// mockup works with any posting order.
-class InstagramPreviewScreen extends StatelessWidget {
+/// Shows the correct order to post tiles so they line up on a profile
+/// grid. Since platforms like Instagram show the newest post first
+/// (top-left), the posting order is the reverse of reading order —
+/// the last tile (reading order) must be posted first.
+class InstagramPreviewScreen extends StatefulWidget {
   final List<ui.Image> tiles;
   final int columns;
 
@@ -17,108 +19,172 @@ class InstagramPreviewScreen extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.white,
-      appBar: AppBar(
-        backgroundColor: Colors.white,
-        foregroundColor: Colors.black,
-        elevation: 0.5,
-        title: const Text('Profile Grid Preview'),
-      ),
-      body: Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.all(16),
-            child: Row(
-              children: [
-                const CircleAvatar(
-                  radius: 32,
-                  backgroundColor: Color(0xFFE0E0E0),
-                  child: Icon(Icons.person, color: Colors.grey, size: 32),
-                ),
-                const SizedBox(width: 20),
-                Expanded(
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceAround,
-                    children: [
-                      _StatColumn(label: 'Posts', value: '${tiles.length}'),
-                      const _StatColumn(label: 'Followers', value: '—'),
-                      const _StatColumn(label: 'Following', value: '—'),
-                    ],
-                  ),
-                ),
-              ],
+  State<InstagramPreviewScreen> createState() => _InstagramPreviewScreenState();
+}
+
+class _InstagramPreviewScreenState extends State<InstagramPreviewScreen> {
+  bool _isSaving = false;
+
+  int _postingOrderFor(int readingIndex) {
+    // readingIndex is 0-based; posting order counts down from the total.
+    return widget.tiles.length - readingIndex;
+  }
+
+  Future<void> _saveGridImages() async {
+    setState(() => _isSaving = true);
+    final result = await ExportService.saveAllToGallery(
+      widget.tiles,
+      format: ExportFormat.png,
+    );
+    setState(() => _isSaving = false);
+
+    if (!mounted) return;
+
+    if (result.error == 'PERMISSION_DENIED') {
+      showDialog(
+        context: context,
+        builder: (_) => AlertDialog(
+          title: const Text('Storage access needed'),
+          content: const Text('Allow gallery access to save these tiles.'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel'),
             ),
-          ),
-          const Padding(
-            padding: EdgeInsets.symmetric(horizontal: 16),
-            child: Align(
-              alignment: Alignment.centerLeft,
-              child: Text('Your Name', style: TextStyle(fontWeight: FontWeight.bold)),
-            ),
-          ),
-          const SizedBox(height: 12),
-          Container(
-            margin: const EdgeInsets.symmetric(horizontal: 16),
-            padding: const EdgeInsets.symmetric(vertical: 8),
-            decoration: BoxDecoration(
-              border: Border.all(color: Colors.grey.shade300),
-              borderRadius: BorderRadius.circular(6),
-            ),
-            child: const Center(
-              child: Text('Edit Profile', style: TextStyle(fontWeight: FontWeight.w600)),
-            ),
-          ),
-          const SizedBox(height: 16),
-          Container(
-            color: Colors.amber.shade50,
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-            width: double.infinity,
-            child: Text(
-              'Post these in reverse order — tile ${tiles.length} first, tile 1 last — '
-              'since new posts appear top-left. Posting in that order recreates this exact grid.',
-              style: Theme.of(context).textTheme.bodySmall,
-            ),
-          ),
-          const Divider(height: 1),
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: 8),
-            child: Icon(Icons.grid_on, color: Colors.black),
-          ),
-          const Divider(height: 1),
-          Expanded(
-            child: GridView.builder(
-              padding: EdgeInsets.zero,
-              gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: columns,
-                crossAxisSpacing: 2,
-                mainAxisSpacing: 2,
-              ),
-              itemCount: tiles.length,
-              itemBuilder: (context, index) {
-                return RawImage(image: tiles[index], fit: BoxFit.cover);
+            FilledButton(
+              onPressed: () {
+                Navigator.pop(context);
+                openAppSettings();
               },
+              child: const Text('Open Settings'),
             ),
+          ],
+        ),
+      );
+      return;
+    }
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          result.success
+              ? 'Saved ${result.savedCount} tiles to your gallery.'
+              : (result.error ?? 'Could not save tiles.'),
+        ),
+      ),
+    );
+  }
+
+  void _showHelp() {
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('Why this order?'),
+        content: const Text(
+          'Instagram (and similar apps) show your newest post at the '
+          'top-left of your profile grid. To make these tiles line up '
+          'into the original photo, post them starting from the tile '
+          'numbered 1, then 2, 3, and so on — not in reading order.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Got it'),
           ),
         ],
       ),
     );
   }
-}
-
-class _StatColumn extends StatelessWidget {
-  final String label;
-  final String value;
-  const _StatColumn({required this.label, required this.value});
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      children: [
-        Text(value, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-        Text(label, style: const TextStyle(color: Colors.grey, fontSize: 12)),
-      ],
+    return Scaffold(
+      appBar: AppBar(title: const Text('Your Grids')),
+      body: Column(
+        children: [
+          const Padding(
+            padding: EdgeInsets.fromLTRB(20, 16, 20, 12),
+            child: Text(
+              'Tap on the photos in order of their numbers to post to your feed.',
+              textAlign: TextAlign.center,
+            ),
+          ),
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              child: GridView.builder(
+                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: widget.columns,
+                ),
+                itemCount: widget.tiles.length,
+                itemBuilder: (context, index) {
+                  return Stack(
+                    fit: StackFit.expand,
+                    children: [
+                      RawImage(image: widget.tiles[index], fit: BoxFit.cover),
+                      Center(
+                        child: Container(
+                          width: 40,
+                          height: 40,
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(8),
+                            boxShadow: const [
+                              BoxShadow(color: Colors.black38, blurRadius: 4),
+                            ],
+                          ),
+                          alignment: Alignment.center,
+                          child: Text(
+                            '${_postingOrderFor(index)}',
+                            style: const TextStyle(
+                              color: Colors.black,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 18,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  );
+                },
+              ),
+            ),
+          ),
+          SafeArea(
+            top: false,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: FilledButton.icon(
+                      onPressed: _isSaving ? null : _saveGridImages,
+                      icon: _isSaving
+                          ? const SizedBox(
+                              width: 16,
+                              height: 16,
+                              child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                          : const Icon(Icons.download_outlined),
+                      label: const Padding(
+                        padding: EdgeInsets.symmetric(vertical: 10),
+                        child: Text('Save Grid Images'),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  OutlinedButton(
+                    onPressed: _showHelp,
+                    child: const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 10, horizontal: 8),
+                      child: Text('Help?'),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
