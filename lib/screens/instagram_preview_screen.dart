@@ -7,15 +7,21 @@ import '../services/export_service.dart';
 /// Shows the correct order to post tiles so they line up on a profile
 /// grid. Since platforms like Instagram show the newest post first
 /// (top-left), the posting order is the reverse of reading order —
-/// the last tile (reading order) must be posted first.
+/// the last tile (reading order) must be posted first. The full
+/// canvas shape (whatever ratio the user chose) is always shown
+/// intact — never cropped to fit a fixed-shape container.
 class InstagramPreviewScreen extends StatefulWidget {
   final List<ui.Image> tiles;
   final int columns;
+  final int rows;
+  final double canvasAspectRatio;
 
   const InstagramPreviewScreen({
     super.key,
     required this.tiles,
     required this.columns,
+    required this.rows,
+    required this.canvasAspectRatio,
   });
 
   @override
@@ -26,7 +32,6 @@ class _InstagramPreviewScreenState extends State<InstagramPreviewScreen> {
   bool _isSaving = false;
 
   int _postingOrderFor(int readingIndex) {
-    // readingIndex is 0-based; posting order counts down from the total.
     return widget.tiles.length - readingIndex;
   }
 
@@ -98,6 +103,9 @@ class _InstagramPreviewScreenState extends State<InstagramPreviewScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final cellAspectRatio =
+        widget.canvasAspectRatio * widget.rows / widget.columns;
+
     return Scaffold(
       appBar: AppBar(title: const Text('Your Grids')),
       body: Column(
@@ -110,43 +118,53 @@ class _InstagramPreviewScreenState extends State<InstagramPreviewScreen> {
             ),
           ),
           Expanded(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 12),
-              child: GridView.builder(
-                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: widget.columns,
-                ),
-                itemCount: widget.tiles.length,
-                itemBuilder: (context, index) {
-                  return Stack(
-                    fit: StackFit.expand,
-                    children: [
-                      RawImage(image: widget.tiles[index], fit: BoxFit.cover),
-                      Center(
-                        child: Container(
-                          width: 40,
-                          height: 40,
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(8),
-                            boxShadow: const [
-                              BoxShadow(color: Colors.black38, blurRadius: 4),
-                            ],
-                          ),
-                          alignment: Alignment.center,
-                          child: Text(
-                            '${_postingOrderFor(index)}',
-                            style: const TextStyle(
-                              color: Colors.black,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 18,
-                            ),
-                          ),
-                        ),
+            child: SingleChildScrollView(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                child: Center(
+                  child: AspectRatio(
+                    aspectRatio: widget.canvasAspectRatio,
+                    child: GridView.builder(
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: widget.columns,
+                        childAspectRatio: cellAspectRatio,
                       ),
-                    ],
-                  );
-                },
+                      itemCount: widget.tiles.length,
+                      itemBuilder: (context, index) {
+                        return Stack(
+                          fit: StackFit.expand,
+                          children: [
+                            RawImage(image: widget.tiles[index], fit: BoxFit.cover),
+                            Center(
+                              child: Container(
+                                width: 40,
+                                height: 40,
+                                decoration: BoxDecoration(
+                                  color: Colors.white,
+                                  borderRadius: BorderRadius.circular(8),
+                                  boxShadow: const [
+                                    BoxShadow(color: Colors.black38, blurRadius: 4),
+                                  ],
+                                ),
+                                alignment: Alignment.center,
+                                child: Text(
+                                  '${_postingOrderFor(index)}',
+                                  style: const TextStyle(
+                                    color: Colors.black,
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 18,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        );
+                      },
+                    ),
+                  ),
+                ),
               ),
             ),
           ),
