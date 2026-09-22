@@ -41,4 +41,4 @@ class ImageService {
       return const ImagePickResult(error: 'Something went wrong while picking the image.');
     }
   }
-  
+}
