@@ -1,10 +1,11 @@
 import 'dart:io';
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:permission_handler/permission_handler.dart';
 import '../models/canvas_ratio.dart';
 import '../models/grid_layout.dart';
-import '../services/image_composer_service.dart';
 import '../services/image_service.dart';
 import '../services/image_slicer_service.dart';
 import '../services/recent_projects_service.dart';
@@ -34,11 +35,11 @@ class _GridEditorScreenState extends State<GridEditorScreen> {
   final ImageService _imageService = ImageService();
   final RecentProjectsService _recentProjectsService = RecentProjectsService();
   final TransformationController _transformController = TransformationController();
+  final GlobalKey _captureKey = GlobalKey();
 
   late GridLayoutOption _layout;
   late CanvasRatioOption _ratio;
   File? _pickedImage;
-  ui.Image? _decodedImage;
   bool _isPicking = false;
   bool _isProcessing = false;
 
@@ -53,23 +54,13 @@ class _GridEditorScreenState extends State<GridEditorScreen> {
       (r) => r.id == widget.initialRatioId,
       orElse: () => kCanvasRatios[0],
     );
-    if (widget.initialImage != null) {
-      _pickedImage = widget.initialImage;
-      _decodeCurrentImage();
-    }
+    _pickedImage = widget.initialImage;
   }
 
   @override
   void dispose() {
     _transformController.dispose();
     super.dispose();
-  }
-
-  Future<void> _decodeCurrentImage() async {
-    if (_pickedImage == null) return;
-    final decoded = await ImageService.decodeImageFile(_pickedImage!);
-    if (!mounted) return;
-    setState(() => _decodedImage = decoded);
   }
 
   Future<void> _pickImage() async {
@@ -92,28 +83,42 @@ class _GridEditorScreenState extends State<GridEditorScreen> {
 
     if (result.image != null) {
       _transformController.value = Matrix4.identity();
-      setState(() {
-        _pickedImage = result.image;
-        _decodedImage = null;
-      });
-      await _decodeCurrentImage();
+      setState(() => _pickedImage = result.image);
     }
   }
 
   Future<void> _captureAndSlice() async {
-    final decoded = _decodedImage;
-    if (decoded == null) return;
-
     setState(() => _isProcessing = true);
 
     try {
-      // The exact same math used for the live preview — the crop
-      // rectangle here matches, pixel for pixel, what was framed.
-      final composedImage = await ImageComposerService.composeFramedImage(
-        sourceImage: decoded,
-        transformMatrix: _transformController.value,
-        canvasAspectRatio: _ratio.ratio,
-      );
+      // Ensure the very latest frame (including the final position of
+      // any in-progress pinch/pan gesture) has fully rendered before
+      // capturing, rather than possibly grabbing a stale frame.
+      await SchedulerBinding.instance.endOfFrame;
+      if (!mounted) return;
+
+      final boundary = _captureKey.currentContext?.findRenderObject()
+          as RenderRepaintBoundary?;
+
+      if (boundary == null) {
+        throw Exception('Could not capture the framed photo.');
+      }
+
+      if (boundary.debugNeedsPaint) {
+        // Still dirty — wait one more frame and re-fetch, rather than
+        // risk capturing an out-of-date paint.
+        await SchedulerBinding.instance.endOfFrame;
+        if (!mounted) return;
+      }
+
+      // Match the device's real pixel density so exported tiles are
+      // sharp on the device that made them, with a sensible floor for
+      // low-density screens and a ceiling to avoid runaway memory use
+      // on very high-density ones.
+      final devicePixelRatio = MediaQuery.of(context).devicePixelRatio;
+      final captureRatio = devicePixelRatio.clamp(2.0, 4.0);
+
+      final ui.Image composedImage = await boundary.toImage(pixelRatio: captureRatio);
 
       final tiles = await ImageSlicerService.sliceImage(
         composedImage,
@@ -229,6 +234,7 @@ class _GridEditorScreenState extends State<GridEditorScreen> {
                                 aspectRatio: _ratio.ratio,
                                 rows: _layout.rows,
                                 columns: _layout.columns,
+                                captureKey: _captureKey,
                                 transformationController: _transformController,
                               )
                             : LiveGridPreview(
@@ -280,7 +286,7 @@ class _GridEditorScreenState extends State<GridEditorScreen> {
                           const SizedBox(width: 12),
                           Expanded(
                             child: FilledButton(
-                              onPressed: (_isProcessing || _decodedImage == null) ? null : _captureAndSlice,
+                              onPressed: _isProcessing ? null : _captureAndSlice,
                               child: _isProcessing
                                   ? const SizedBox(
                                       width: 16,
