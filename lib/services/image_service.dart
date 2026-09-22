@@ -42,4 +42,15 @@ class ImageService {
       return const ImagePickResult(error: 'Something went wrong while picking the image.');
     }
   }
+
+  /// Decodes an image file into its real, full-resolution pixel data.
+  /// This is the single source of truth used for both on-screen
+  /// positioning and final tile slicing, so what the user sees is
+  /// exactly what gets exported.
+  static Future<ui.Image> decodeImageFile(File file) async {
+    final bytes = await file.readAsBytes();
+    final codec = await ui.instantiateImageCodec(bytes);
+    final frame = await codec.getNextFrame();
+    return frame.image;
+  }
 }
