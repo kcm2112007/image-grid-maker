@@ -188,7 +188,7 @@ class _TilePreviewScreenState extends State<TilePreviewScreen> {
                     );
                   },
                   icon: const Icon(Icons.grid_view_outlined),
-                  label: const Text('Preview as Profile Grid'),
+                  label: const Text('View Posting Order'),
                 ),
               ),
               Padding(
