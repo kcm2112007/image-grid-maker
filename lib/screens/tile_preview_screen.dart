@@ -5,6 +5,7 @@ import 'package:share_plus/share_plus.dart';
 import '../models/export_format.dart';
 import '../services/ad_service.dart';
 import '../services/export_service.dart';
+import 'instagram_preview_screen.dart';
 
 /// Shows the sliced tiles in their grid position, numbered in reading
 /// order (left-to-right, top-to-bottom), with real save-to-gallery and
@@ -173,10 +174,28 @@ class _TilePreviewScreenState extends State<TilePreviewScreen> {
             ),
           ),
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: Row(
-              children: [
-                Text('Format:', style: Theme.of(context).textTheme.bodyMedium),
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                child: OutlinedButton.icon(
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => InstagramPreviewScreen(
+                          tiles: widget.tiles,
+                          columns: widget.columns,
+                        ),
+                      ),
+                    );
+                  },
+                  icon: const Icon(Icons.grid_view_outlined),
+                  label: const Text('Preview as Profile Grid'),
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Row(
+                  children: [
+                    Text('Format:', style: Theme.of(context).textTheme.bodyMedium),
                 const SizedBox(width: 12),
                 SegmentedButton<ExportFormat>(
                   segments: const [
