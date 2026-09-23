@@ -73,7 +73,7 @@ class _InstagramPreviewScreenState extends State<InstagramPreviewScreen> {
       SnackBar(
         content: Text(
           result.success
-              ? 'Saved ${result.savedCount} tiles to your gallery.'
+              ? '${result.savedCount} grid images saved in posting order.'
               : (result.error ?? 'Could not save tiles.'),
         ),
       ),
