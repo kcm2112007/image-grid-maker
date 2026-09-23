@@ -125,7 +125,9 @@ class ExportService {
       final files = <File>[];
 
       for (int i = 0; i < orderedTiles.length; i++) {
-        final bytes = await _imageToBytes(orderedTiles[i], format: format, quality: quality);
+        final exportReadyTile =
+            await InstagramCompatibilityService.letterboxForInstagram(orderedTiles[i]);
+        final bytes = await _imageToBytes(exportReadyTile, format: format, quality: quality);
         final name = _filenameFor(i, orderedTiles.length);
         final file = File('${tempDir.path}/$name.${format.fileExtension}');
         await file.writeAsBytes(bytes);
