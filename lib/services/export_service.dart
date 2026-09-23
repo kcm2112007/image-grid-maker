@@ -6,6 +6,7 @@ import 'package:image/image.dart' as img;
 import 'package:path_provider/path_provider.dart';
 import '../models/export_format.dart';
 import 'posting_order_service.dart';
+import 'instagram_compatibility_service.dart';
 
 /// Result of an export attempt. `error` is null on full success.
 class ExportResult {
