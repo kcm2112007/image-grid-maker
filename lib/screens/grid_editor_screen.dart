@@ -5,6 +5,7 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:permission_handler/permission_handler.dart';
 import '../models/canvas_ratio.dart';
+import '../models/grid_config.dart';
 import '../models/grid_layout.dart';
 import '../services/image_service.dart';
 import '../services/image_slicer_service.dart';
@@ -42,6 +43,16 @@ class _GridEditorScreenState extends State<GridEditorScreen> {
   File? _pickedImage;
   bool _isPicking = false;
   bool _isProcessing = false;
+
+  // The selected "Canvas shape" is the ratio of ONE tile — this
+  // GridConfig is the single place that derives the combined
+  // (whole-grid) ratio from it. Every screen that positions, previews,
+  // or exports reads from this, never recalculating the formula itself.
+  GridConfig get _gridConfig => GridConfig(
+        columns: _layout.columns,
+        rows: _layout.rows,
+        tileAspectRatio: _ratio.ratio,
+      );
 
   @override
   void initState() {
@@ -91,9 +102,6 @@ class _GridEditorScreenState extends State<GridEditorScreen> {
     setState(() => _isProcessing = true);
 
     try {
-      // Ensure the very latest frame (including the final position of
-      // any in-progress pinch/pan gesture) has fully rendered before
-      // capturing, rather than possibly grabbing a stale frame.
       await SchedulerBinding.instance.endOfFrame;
       if (!mounted) return;
 
@@ -105,25 +113,24 @@ class _GridEditorScreenState extends State<GridEditorScreen> {
       }
 
       if (boundary.debugNeedsPaint) {
-        // Still dirty — wait one more frame and re-fetch, rather than
-        // risk capturing an out-of-date paint.
         await SchedulerBinding.instance.endOfFrame;
         if (!mounted) return;
       }
 
-      // Match the device's real pixel density so exported tiles are
-      // sharp on the device that made them, with a sensible floor for
-      // low-density screens and a ceiling to avoid runaway memory use
-      // on very high-density ones.
       final devicePixelRatio = MediaQuery.of(context).devicePixelRatio;
       final captureRatio = devicePixelRatio.clamp(2.0, 4.0);
 
+      // The boundary is framed to the combined-grid shape, so slicing
+      // it evenly into columns × rows always yields tiles at exactly
+      // the user's selected tile aspect ratio — one shared pipeline,
+      // no per-screen recalculation.
       final ui.Image composedImage = await boundary.toImage(pixelRatio: captureRatio);
 
+      final config = _gridConfig;
       final tiles = await ImageSlicerService.sliceImage(
         composedImage,
-        rows: _layout.rows,
-        columns: _layout.columns,
+        rows: config.rows,
+        columns: config.columns,
       );
 
       try {
@@ -143,9 +150,7 @@ class _GridEditorScreenState extends State<GridEditorScreen> {
         MaterialPageRoute(
           builder: (_) => TilePreviewScreen(
             tiles: tiles,
-            rows: _layout.rows,
-            columns: _layout.columns,
-            canvasAspectRatio: _ratio.ratio,
+            gridConfig: config,
           ),
         ),
       );
@@ -186,6 +191,7 @@ class _GridEditorScreenState extends State<GridEditorScreen> {
   @override
   Widget build(BuildContext context) {
     final hasImage = _pickedImage != null;
+    final config = _gridConfig;
 
     return Scaffold(
       appBar: AppBar(title: const Text('Create Grid')),
@@ -221,27 +227,31 @@ class _GridEditorScreenState extends State<GridEditorScreen> {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      '${_layout.cellCount} tiles (${_layout.label})',
+                      '${config.totalTiles} tiles (${_layout.label})',
                       textAlign: TextAlign.center,
                       style: Theme.of(context).textTheme.bodySmall,
                     ),
                     const SizedBox(height: 16),
+                    // The frame shows the CORRECT combined composition
+                    // (tileAspectRatio × columns / rows) — e.g. wide
+                    // 2:1 for a 2:3 tile split 3×1 — not the tile's own
+                    // shape. This is the actual fix for the reported bug.
                     ConstrainedBox(
                       constraints: const BoxConstraints(maxHeight: 420),
                       child: Center(
                         child: hasImage
                             ? FramingCanvas(
                                 image: _pickedImage!,
-                                aspectRatio: _ratio.ratio,
-                                rows: _layout.rows,
-                                columns: _layout.columns,
+                                aspectRatio: config.combinedAspectRatio,
+                                rows: config.rows,
+                                columns: config.columns,
                                 captureKey: _captureKey,
                                 transformationController: _transformController,
                               )
                             : LiveGridPreview(
-                                aspectRatio: _ratio.ratio,
-                                rows: _layout.rows,
-                                columns: _layout.columns,
+                                aspectRatio: config.combinedAspectRatio,
+                                rows: config.rows,
+                                columns: config.columns,
                               ),
                       ),
                     ),
