@@ -69,7 +69,7 @@ class _TilePreviewScreenState extends State<TilePreviewScreen> {
 
     if (result.success) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Saved ${result.savedCount} tiles to your gallery.')),
+        SnackBar(content: Text('${result.savedCount} grid images saved in posting order.')),
       );
       await _adService.showInterstitialIfReady();
     } else {
