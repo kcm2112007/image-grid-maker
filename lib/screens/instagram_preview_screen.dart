@@ -2,26 +2,23 @@ import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:permission_handler/permission_handler.dart';
 import '../models/export_format.dart';
+import '../models/grid_config.dart';
 import '../services/export_service.dart';
 
 /// Shows the correct order to post tiles so they line up on a profile
 /// grid. Since platforms like Instagram show the newest post first
 /// (top-left), the posting order is the reverse of reading order —
 /// the last tile (reading order) must be posted first. The full
-/// canvas shape (whatever ratio the user chose) is always shown
-/// intact — never cropped to fit a fixed-shape container.
+/// combined canvas shape comes from the single shared GridConfig,
+/// so this always matches Preview and the exported files exactly.
 class InstagramPreviewScreen extends StatefulWidget {
   final List<ui.Image> tiles;
-  final int columns;
-  final int rows;
-  final double canvasAspectRatio;
+  final GridConfig gridConfig;
 
   const InstagramPreviewScreen({
     super.key,
     required this.tiles,
-    required this.columns,
-    required this.rows,
-    required this.canvasAspectRatio,
+    required this.gridConfig,
   });
 
   @override
@@ -103,9 +100,6 @@ class _InstagramPreviewScreenState extends State<InstagramPreviewScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final cellAspectRatio =
-        widget.canvasAspectRatio * widget.rows / widget.columns;
-
     return Scaffold(
       appBar: AppBar(title: const Text('Your Grids')),
       body: Column(
@@ -123,13 +117,13 @@ class _InstagramPreviewScreenState extends State<InstagramPreviewScreen> {
                 padding: const EdgeInsets.symmetric(horizontal: 12),
                 child: Center(
                   child: AspectRatio(
-                    aspectRatio: widget.canvasAspectRatio,
+                    aspectRatio: widget.gridConfig.combinedAspectRatio,
                     child: GridView.builder(
                       shrinkWrap: true,
                       physics: const NeverScrollableScrollPhysics(),
                       gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                        crossAxisCount: widget.columns,
-                        childAspectRatio: cellAspectRatio,
+                        crossAxisCount: widget.gridConfig.columns,
+                        childAspectRatio: widget.gridConfig.tileAspectRatio,
                       ),
                       itemCount: widget.tiles.length,
                       itemBuilder: (context, index) {
