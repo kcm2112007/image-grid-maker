@@ -88,7 +88,9 @@ class ExportService {
       final orderedTiles = PostingOrderService.getPostingOrderedTiles(visualTiles);
 
       for (int i = 0; i < orderedTiles.length; i++) {
-        final bytes = await _imageToBytes(orderedTiles[i], format: format, quality: quality);
+        final exportReadyTile =
+            await InstagramCompatibilityService.letterboxForInstagram(orderedTiles[i]);
+        final bytes = await _imageToBytes(exportReadyTile, format: format, quality: quality);
         await Gal.putImageBytes(
           bytes,
           name: _filenameFor(i, orderedTiles.length),
