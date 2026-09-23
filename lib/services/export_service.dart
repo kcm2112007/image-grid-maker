@@ -5,11 +5,9 @@ import 'package:gal/gal.dart';
 import 'package:image/image.dart' as img;
 import 'package:path_provider/path_provider.dart';
 import '../models/export_format.dart';
+import 'posting_order_service.dart';
 
 /// Result of an export attempt. `error` is null on full success.
-/// `savedCount` tells the UI how many tiles actually succeeded, since
-/// a partial failure partway through a batch is still useful to report
-/// accurately rather than as a flat success/failure.
 class ExportResult {
   final bool success;
   final int savedCount;
@@ -25,9 +23,6 @@ class ExportResult {
 }
 
 class ExportService {
-  /// Converts a ui.Image into bytes in the requested format. For JPG,
-  /// [quality] (1-100) controls the lossy compression level; it is
-  /// ignored for PNG, which is always lossless.
   static Future<Uint8List> _imageToBytes(
     ui.Image image, {
     required ExportFormat format,
@@ -41,8 +36,6 @@ class ExportService {
       return byteData.buffer.asUint8List();
     }
 
-    // JPG path: dart:ui has no JPEG encoder, so we get raw RGBA pixels
-    // from the ui.Image and hand them to the `image` package to encode.
     final rawByteData = await image.toByteData(format: ui.ImageByteFormat.rawRgba);
     if (rawByteData == null) {
       throw Exception('Could not read image pixels for JPG encoding.');
@@ -60,11 +53,20 @@ class ExportService {
     return Uint8List.fromList(jpgBytes);
   }
 
-  /// Saves every tile directly to the device's photo gallery, in the
-  /// requested format, numbered in the same reading order shown in
-  /// the preview.
+  /// Zero-padded, sortable filename base — e.g. "Grid_01" — where the
+  /// number reflects posting order (already applied to the list
+  /// before this is called), not visual/reading order.
+  static String _filenameFor(int postingIndexZeroBased, int total) {
+    final width = total.toString().length.clamp(2, 10);
+    final number = (postingIndexZeroBased + 1).toString().padLeft(width, '0');
+    return 'Grid_$number';
+  }
+
+  /// Saves tiles to the gallery in Instagram posting order, one at a
+  /// time (never concurrently), so MediaStore insertion order is
+  /// deterministic and matches the filenames.
   static Future<ExportResult> saveAllToGallery(
-    List<ui.Image> tiles, {
+    List<ui.Image> visualTiles, {
     required ExportFormat format,
     int quality = 90,
   }) async {
@@ -82,11 +84,13 @@ class ExportService {
         }
       }
 
-      for (int i = 0; i < tiles.length; i++) {
-        final bytes = await _imageToBytes(tiles[i], format: format, quality: quality);
+      final orderedTiles = PostingOrderService.getPostingOrderedTiles(visualTiles);
+
+      for (int i = 0; i < orderedTiles.length; i++) {
+        final bytes = await _imageToBytes(orderedTiles[i], format: format, quality: quality);
         await Gal.putImageBytes(
           bytes,
-          name: 'image_grid_maker_tile_${i + 1}',
+          name: _filenameFor(i, orderedTiles.length),
         );
         saved++;
       }
@@ -98,25 +102,29 @@ class ExportService {
         savedCount: saved,
         error: saved == 0
             ? 'Could not save tiles: $e'
-            : 'Saved $saved of ${tiles.length} tiles before an error occurred: $e',
+            : 'Saved $saved of ${visualTiles.length} tiles before an error occurred: $e',
       );
     }
   }
 
-  /// Writes every tile to a temp folder in the requested format, so
-  /// they can be handed to the share sheet.
+  /// Writes tiles to a temp folder in Instagram posting order, one at
+  /// a time, using the same filename convention and the same
+  /// PostingOrderService as saveAllToGallery — Save and Share can
+  /// never disagree on order.
   static Future<ExportResult> prepareFilesForSharing(
-    List<ui.Image> tiles, {
+    List<ui.Image> visualTiles, {
     required ExportFormat format,
     int quality = 90,
   }) async {
     try {
       final tempDir = await getTemporaryDirectory();
+      final orderedTiles = PostingOrderService.getPostingOrderedTiles(visualTiles);
       final files = <File>[];
 
-      for (int i = 0; i < tiles.length; i++) {
-        final bytes = await _imageToBytes(tiles[i], format: format, quality: quality);
-        final file = File('${tempDir.path}/tile_${i + 1}.${format.fileExtension}');
+      for (int i = 0; i < orderedTiles.length; i++) {
+        final bytes = await _imageToBytes(orderedTiles[i], format: format, quality: quality);
+        final name = _filenameFor(i, orderedTiles.length);
+        final file = File('${tempDir.path}/$name.${format.fileExtension}');
         await file.writeAsBytes(bytes);
         files.add(file);
       }
