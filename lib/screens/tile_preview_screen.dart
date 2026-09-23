@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:share_plus/share_plus.dart';
 import '../models/export_format.dart';
+import '../models/grid_config.dart';
 import '../services/ad_service.dart';
 import '../services/export_service.dart';
 import 'instagram_preview_screen.dart';
@@ -11,19 +12,17 @@ import 'instagram_preview_screen.dart';
 /// order (left-to-right, top-to-bottom), with real save-to-gallery and
 /// share actions, a choice of export format (PNG or JPG with a quality
 /// slider), a rewarded ad that unlocks max JPG quality, and an
-/// interstitial ad shown after a successful export.
+/// interstitial ad shown after a successful export. Every tile's
+/// aspect ratio comes from the single shared GridConfig, matching
+/// exactly what was framed and exported — never recalculated here.
 class TilePreviewScreen extends StatefulWidget {
   final List<ui.Image> tiles;
-  final int rows;
-  final int columns;
-  final double canvasAspectRatio;
+  final GridConfig gridConfig;
 
   const TilePreviewScreen({
     super.key,
     required this.tiles,
-    required this.rows,
-    required this.columns,
-    required this.canvasAspectRatio,
+    required this.gridConfig,
   });
 
   @override
@@ -157,12 +156,6 @@ class _TilePreviewScreenState extends State<TilePreviewScreen> {
         _quality < 100 &&
         _adService.isRewardedReady;
 
-    // Each tile's true shape, derived from the canvas ratio the user
-    // actually chose — never hardcoded, so this is correct for every
-    // ratio and every grid size without special-casing any of them.
-    final cellAspectRatio =
-        widget.canvasAspectRatio * widget.rows / widget.columns;
-
     return Scaffold(
       appBar: AppBar(title: Text('Preview — ${widget.tiles.length} tiles')),
       body: Column(
@@ -173,15 +166,15 @@ class _TilePreviewScreenState extends State<TilePreviewScreen> {
                 padding: const EdgeInsets.all(12),
                 child: Center(
                   child: AspectRatio(
-                    aspectRatio: widget.canvasAspectRatio,
+                    aspectRatio: widget.gridConfig.combinedAspectRatio,
                     child: GridView.builder(
                       shrinkWrap: true,
                       physics: const NeverScrollableScrollPhysics(),
                       gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                        crossAxisCount: widget.columns,
+                        crossAxisCount: widget.gridConfig.columns,
                         crossAxisSpacing: 4,
                         mainAxisSpacing: 4,
-                        childAspectRatio: cellAspectRatio,
+                        childAspectRatio: widget.gridConfig.tileAspectRatio,
                       ),
                       itemCount: widget.tiles.length,
                       itemBuilder: (context, index) {
@@ -226,9 +219,7 @@ class _TilePreviewScreenState extends State<TilePreviewScreen> {
                   MaterialPageRoute(
                     builder: (_) => InstagramPreviewScreen(
                       tiles: widget.tiles,
-                      columns: widget.columns,
-                      rows: widget.rows,
-                      canvasAspectRatio: widget.canvasAspectRatio,
+                      gridConfig: widget.gridConfig,
                     ),
                   ),
                 );
