@@ -1,18 +1,17 @@
-import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:permission_handler/permission_handler.dart';
 import '../models/export_format.dart';
 import '../models/grid_config.dart';
+import '../models/positioned_tile.dart';
 import '../services/export_service.dart';
 
 /// Shows the correct order to post tiles so they line up on a profile
-/// grid. Since platforms like Instagram show the newest post first
-/// (top-left), the posting order is the reverse of reading order —
-/// the last tile (reading order) must be posted first. The full
-/// combined canvas shape comes from the single shared GridConfig,
-/// so this always matches Preview and the exported files exactly.
+/// grid. Each tile's badge number comes directly from that tile's own
+/// row/column via postingNumber() — the exact same calculation used
+/// when saving/sharing, so this display can never disagree with the
+/// saved files.
 class InstagramPreviewScreen extends StatefulWidget {
-  final List<ui.Image> tiles;
+  final List<PositionedTile> tiles;
   final GridConfig gridConfig;
 
   const InstagramPreviewScreen({
@@ -28,14 +27,12 @@ class InstagramPreviewScreen extends StatefulWidget {
 class _InstagramPreviewScreenState extends State<InstagramPreviewScreen> {
   bool _isSaving = false;
 
-  int _postingOrderFor(int readingIndex) {
-    return widget.tiles.length - readingIndex;
-  }
-
   Future<void> _saveGridImages() async {
     setState(() => _isSaving = true);
     final result = await ExportService.saveAllToGallery(
       widget.tiles,
+      rows: widget.gridConfig.rows,
+      columns: widget.gridConfig.columns,
       format: ExportFormat.png,
     );
     setState(() => _isSaving = false);
@@ -127,10 +124,15 @@ class _InstagramPreviewScreenState extends State<InstagramPreviewScreen> {
                       ),
                       itemCount: widget.tiles.length,
                       itemBuilder: (context, index) {
+                        final tile = widget.tiles[index];
+                        final postingNumber = tile.postingNumber(
+                          widget.gridConfig.rows,
+                          widget.gridConfig.columns,
+                        );
                         return Stack(
                           fit: StackFit.expand,
                           children: [
-                            RawImage(image: widget.tiles[index], fit: BoxFit.cover),
+                            RawImage(image: tile.image, fit: BoxFit.cover),
                             Center(
                               child: Container(
                                 width: 40,
@@ -144,7 +146,7 @@ class _InstagramPreviewScreenState extends State<InstagramPreviewScreen> {
                                 ),
                                 alignment: Alignment.center,
                                 child: Text(
-                                  '${_postingOrderFor(index)}',
+                                  '$postingNumber',
                                   style: const TextStyle(
                                     color: Colors.black,
                                     fontWeight: FontWeight.bold,
