@@ -1,22 +1,20 @@
-import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:share_plus/share_plus.dart';
 import '../models/export_format.dart';
 import '../models/grid_config.dart';
+import '../models/positioned_tile.dart';
 import '../services/ad_service.dart';
 import '../services/export_service.dart';
 import 'instagram_preview_screen.dart';
 
 /// Shows the sliced tiles in their grid position, numbered in reading
-/// order (left-to-right, top-to-bottom), with real save-to-gallery and
-/// share actions, a choice of export format (PNG or JPG with a quality
-/// slider), a rewarded ad that unlocks max JPG quality, and an
-/// interstitial ad shown after a successful export. Every tile's
-/// aspect ratio comes from the single shared GridConfig, matching
-/// exactly what was framed and exported — never recalculated here.
+/// order (left-to-right, top-to-bottom) for display, with real
+/// save-to-gallery and share actions that save in true posting-number
+/// order (computed from each tile's own row/column, never a separate
+/// reversed list) — the same order shown in "Your Grids".
 class TilePreviewScreen extends StatefulWidget {
-  final List<ui.Image> tiles;
+  final List<PositionedTile> tiles;
   final GridConfig gridConfig;
 
   const TilePreviewScreen({
@@ -54,6 +52,8 @@ class _TilePreviewScreenState extends State<TilePreviewScreen> {
     setState(() => _isSaving = true);
     final result = await ExportService.saveAllToGallery(
       widget.tiles,
+      rows: widget.gridConfig.rows,
+      columns: widget.gridConfig.columns,
       format: _format,
       quality: _quality.round(),
     );
@@ -102,6 +102,8 @@ class _TilePreviewScreenState extends State<TilePreviewScreen> {
     setState(() => _isSharing = true);
     final result = await ExportService.prepareFilesForSharing(
       widget.tiles,
+      rows: widget.gridConfig.rows,
+      columns: widget.gridConfig.columns,
       format: _format,
       quality: _quality.round(),
     );
@@ -178,11 +180,13 @@ class _TilePreviewScreenState extends State<TilePreviewScreen> {
                       ),
                       itemCount: widget.tiles.length,
                       itemBuilder: (context, index) {
+                        // Display stays in reading order — unchanged,
+                        // as required.
                         return Stack(
                           children: [
                             Positioned.fill(
                               child: RawImage(
-                                image: widget.tiles[index],
+                                image: widget.tiles[index].image,
                                 fit: BoxFit.cover,
                               ),
                             ),
