@@ -9,6 +9,7 @@ import '../models/grid_config.dart';
 import '../models/grid_layout.dart';
 import '../services/image_service.dart';
 import '../services/image_slicer_service.dart';
+import '../models/positioned_tile.dart';
 import '../services/recent_projects_service.dart';
 import '../widgets/framing_canvas.dart';
 import '../widgets/layout_selector.dart';
