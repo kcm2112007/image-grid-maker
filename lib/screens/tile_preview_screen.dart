@@ -180,13 +180,23 @@ class _TilePreviewScreenState extends State<TilePreviewScreen> {
                       ),
                       itemCount: widget.tiles.length,
                       itemBuilder: (context, index) {
-                        // Display stays in reading order — unchanged,
-                        // as required.
+                        final tile = widget.tiles[index];
+                        final postingNumber = tile.postingNumber(
+                          widget.gridConfig.rows,
+                          widget.gridConfig.columns,
+                        );
+                        // Badge shows posting order (matches "Your
+                        // Grids" and the saved Grid_XX files) — this
+                        // is UI-only, drawn on top; it never touches
+                        // the underlying tile image itself, which is
+                        // still positioned in the grid by its actual
+                        // row/column (index-based GridView placement
+                        // is unchanged).
                         return Stack(
                           children: [
                             Positioned.fill(
                               child: RawImage(
-                                image: widget.tiles[index].image,
+                                image: tile.image,
                                 fit: BoxFit.cover,
                               ),
                             ),
@@ -200,7 +210,7 @@ class _TilePreviewScreenState extends State<TilePreviewScreen> {
                                   borderRadius: BorderRadius.circular(4),
                                 ),
                                 child: Text(
-                                  '${index + 1}',
+                                  '$postingNumber',
                                   style: const TextStyle(color: Colors.white, fontSize: 12),
                                 ),
                               ),
