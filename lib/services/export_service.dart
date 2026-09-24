@@ -5,7 +5,7 @@ import 'package:gal/gal.dart';
 import 'package:image/image.dart' as img;
 import 'package:path_provider/path_provider.dart';
 import '../models/export_format.dart';
-import 'posting_order_service.dart';
+import '../models/positioned_tile.dart';
 import 'instagram_compatibility_service.dart';
 
 /// Result of an export attempt. `error` is null on full success.
@@ -54,20 +54,35 @@ class ExportService {
     return Uint8List.fromList(jpgBytes);
   }
 
-  /// Zero-padded, sortable filename base — e.g. "Grid_01" — where the
-  /// number reflects posting order (already applied to the list
-  /// before this is called), not visual/reading order.
-  static String _filenameFor(int postingIndexZeroBased, int total) {
-    final width = total.toString().length.clamp(2, 10);
-    final number = (postingIndexZeroBased + 1).toString().padLeft(width, '0');
-    return 'Grid_$number';
+  /// Sorts the actual tile objects (image + position together) by
+  /// their true posting number — bottom-right = 1, right-to-left,
+  /// then upward row by row. This never separates image data from
+  /// its number: each tile computes its own number from its own
+  /// row/column, then the list of complete tile objects is sorted.
+  static List<PositionedTile> _postingOrdered(
+    List<PositionedTile> tiles, {
+    required int rows,
+    required int columns,
+  }) {
+    final ordered = List<PositionedTile>.from(tiles);
+    ordered.sort((a, b) => a
+        .postingNumber(rows, columns)
+        .compareTo(b.postingNumber(rows, columns)));
+    return ordered;
   }
 
-  /// Saves tiles to the gallery in Instagram posting order, one at a
-  /// time (never concurrently), so MediaStore insertion order is
-  /// deterministic and matches the filenames.
+  static String _filenameFor(int postingNumber, int total) {
+    final width = total.toString().length.clamp(2, 10);
+    return 'Grid_${postingNumber.toString().padLeft(width, '0')}';
+  }
+
+  /// Saves tiles to the gallery in true posting-number order, one at
+  /// a time (never concurrently), so both the filename and the
+  /// MediaStore insertion sequence are fully deterministic.
   static Future<ExportResult> saveAllToGallery(
-    List<ui.Image> visualTiles, {
+    List<PositionedTile> tiles, {
+    required int rows,
+    required int columns,
     required ExportFormat format,
     int quality = 90,
   }) async {
@@ -85,15 +100,16 @@ class ExportService {
         }
       }
 
-      final orderedTiles = PostingOrderService.getPostingOrderedTiles(visualTiles);
+      final ordered = _postingOrdered(tiles, rows: rows, columns: columns);
 
-      for (int i = 0; i < orderedTiles.length; i++) {
+      for (final tile in ordered) {
+        final postingNumber = tile.postingNumber(rows, columns);
         final exportReadyTile =
-            await InstagramCompatibilityService.letterboxForInstagram(orderedTiles[i]);
+            await InstagramCompatibilityService.letterboxForInstagram(tile.image);
         final bytes = await _imageToBytes(exportReadyTile, format: format, quality: quality);
         await Gal.putImageBytes(
           bytes,
-          name: _filenameFor(i, orderedTiles.length),
+          name: _filenameFor(postingNumber, ordered.length),
         );
         saved++;
       }
@@ -105,30 +121,32 @@ class ExportService {
         savedCount: saved,
         error: saved == 0
             ? 'Could not save tiles: $e'
-            : 'Saved $saved of ${visualTiles.length} tiles before an error occurred: $e',
+            : 'Saved $saved of ${tiles.length} tiles before an error occurred: $e',
       );
     }
   }
 
-  /// Writes tiles to a temp folder in Instagram posting order, one at
-  /// a time, using the same filename convention and the same
-  /// PostingOrderService as saveAllToGallery — Save and Share can
-  /// never disagree on order.
+  /// Writes tiles to a temp folder in the same true posting order and
+  /// filename convention as saveAllToGallery — Save and Share can
+  /// never disagree, since both call this same sorting logic.
   static Future<ExportResult> prepareFilesForSharing(
-    List<ui.Image> visualTiles, {
+    List<PositionedTile> tiles, {
+    required int rows,
+    required int columns,
     required ExportFormat format,
     int quality = 90,
   }) async {
     try {
       final tempDir = await getTemporaryDirectory();
-      final orderedTiles = PostingOrderService.getPostingOrderedTiles(visualTiles);
+      final ordered = _postingOrdered(tiles, rows: rows, columns: columns);
       final files = <File>[];
 
-      for (int i = 0; i < orderedTiles.length; i++) {
+      for (final tile in ordered) {
+        final postingNumber = tile.postingNumber(rows, columns);
         final exportReadyTile =
-            await InstagramCompatibilityService.letterboxForInstagram(orderedTiles[i]);
+            await InstagramCompatibilityService.letterboxForInstagram(tile.image);
         final bytes = await _imageToBytes(exportReadyTile, format: format, quality: quality);
-        final name = _filenameFor(i, orderedTiles.length);
+        final name = _filenameFor(postingNumber, ordered.length);
         final file = File('${tempDir.path}/$name.${format.fileExtension}');
         await file.writeAsBytes(bytes);
         files.add(file);
