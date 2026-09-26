@@ -102,6 +102,14 @@ class ExportService {
       }
 
       final ordered = _postingOrdered(tiles, rows: rows, columns: columns);
+      // ---- TEMPORARY DEBUG LOGGING — remove after diagnosis ----
+      final docsDir = await getApplicationDocumentsDirectory();
+      final logFile = File('${docsDir.path}/export_debug_log.txt');
+      await logFile.writeAsString(
+        'EXPORT SESSION\nrows=$rows columns=$columns totalTiles=${ordered.length}\n---\n',
+        mode: FileMode.write,
+      );
+      // ---- END TEMPORARY SETUP ----
 
       // ---- TEMPORARY DEBUG LOGGING — remove after diagnosis ----
       // Nothing below this comment changes sorting, the postingNumber
