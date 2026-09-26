@@ -4,7 +4,6 @@ import 'dart:ui' as ui;
 import 'package:gal/gal.dart';
 import 'package:image/image.dart' as img;
 import 'package:path_provider/path_provider.dart';
-import 'package:share_plus/share_plus.dart';
 import '../models/export_format.dart';
 import '../models/positioned_tile.dart';
 import 'instagram_compatibility_service.dart';
@@ -102,6 +101,7 @@ class ExportService {
       }
 
       final ordered = _postingOrdered(tiles, rows: rows, columns: columns);
+
       // ---- TEMPORARY DEBUG LOGGING — remove after diagnosis ----
       final docsDir = await getApplicationDocumentsDirectory();
       final logFile = File('${docsDir.path}/export_debug_log.txt');
@@ -111,24 +111,7 @@ class ExportService {
       );
       // ---- END TEMPORARY SETUP ----
 
-      // ---- TEMPORARY DEBUG LOGGING — remove after diagnosis ----
-      // Nothing below this comment changes sorting, the postingNumber
-      // formula, or the filename logic. It only records, for each
-      // tile actually passed to Gal.putImageBytes, exactly which
-      // physical tile it is and what it was named.
-      final debugLog = StringBuffer();
-      debugLog.writeln('EXPORT SESSION START');
-      debugLog.writeln('rows=$rows columns=$columns totalTiles=${ordered.length}');
-      debugLog.writeln('---');
-      int saveOrderCounter = 0;
-      // ---- END TEMPORARY SETUP ----
-
       for (final tile in ordered) {
-        final postingNumber = tile.postingNumber(rows, columns);
-        final filename = _filenameFor(postingNumber, ordered.length);
-        final exportReadyTile =
-            await InstagramCompatibilityService.letterboxForInstagram(tile.image);
-        for (final tile in ordered) {
         final postingNumber = tile.postingNumber(rows, columns);
         final filename = _filenameFor(postingNumber, ordered.length);
 
@@ -150,19 +133,6 @@ class ExportService {
             await InstagramCompatibilityService.letterboxForInstagram(tile.image);
         final bytes = await _imageToBytes(exportReadyTile, format: format, quality: quality);
 
-        // ---- TEMPORARY DEBUG LOGGING ----
-        saveOrderCounter++;
-        debugLog.writeln('EXPORT:');
-        debugLog.writeln('  rows=$rows columns=$columns');
-        debugLog.writeln('  tile.row=${tile.row} tile.column=${tile.column}');
-        debugLog.writeln('  postingNumber=$postingNumber');
-        debugLog.writeln('  filename=$filename.${format.fileExtension}');
-        debugLog.writeln('  imageIdentity=${identityHashCode(tile.image)}');
-        debugLog.writeln('  sourceTileImage.width=${tile.image.width} height=${tile.image.height}');
-        debugLog.writeln('  exportReadyImage.width=${exportReadyTile.width} height=${exportReadyTile.height}');
-        debugLog.writeln('  startOrder=$saveOrderCounter');
-        // ---- END TEMPORARY LOGGING ----
-
         await Gal.putImageBytes(
           bytes,
           name: filename,
@@ -170,28 +140,12 @@ class ExportService {
         saved++;
 
         // ---- TEMPORARY DEBUG LOGGING ----
-        debugLog.writeln('SAVE COMPLETE:');
-        debugLog.writeln('  filename=$filename.${format.fileExtension}');
-        debugLog.writeln('  completeOrder=$saveOrderCounter');
-        debugLog.writeln('---');
+        await logFile.writeAsString(
+          'EXPORT_COMPLETE\nfilename=$filename.${format.fileExtension}\n---\n',
+          mode: FileMode.append,
+        );
         // ---- END TEMPORARY LOGGING ----
       }
-
-      // ---- TEMPORARY DEBUG LOGGING — writes log to a file and opens
-      // the share sheet so it can be viewed without a PC/adb. ----
-      try {
-        final tempDir = await getTemporaryDirectory();
-        final logFile = File('${tempDir.path}/export_debug_log.txt');
-        await logFile.writeAsString(debugLog.toString());
-        await Share.shareXFiles(
-          [XFile(logFile.path)],
-          text: 'Export debug log',
-        );
-      } catch (_) {
-        // If sharing the log fails, don't let that affect the actual
-        // export result below.
-      }
-      // ---- END TEMPORARY LOGGING ----
 
       return ExportResult(success: true, savedCount: saved);
     } catch (e) {
