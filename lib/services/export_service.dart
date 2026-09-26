@@ -128,6 +128,26 @@ class ExportService {
         final filename = _filenameFor(postingNumber, ordered.length);
         final exportReadyTile =
             await InstagramCompatibilityService.letterboxForInstagram(tile.image);
+        for (final tile in ordered) {
+        final postingNumber = tile.postingNumber(rows, columns);
+        final filename = _filenameFor(postingNumber, ordered.length);
+
+        // ---- TEMPORARY DEBUG LOGGING ----
+        await logFile.writeAsString(
+          'EXPORT_TILE\n'
+          'rows=$rows\n'
+          'columns=$columns\n'
+          'row=${tile.row}\n'
+          'column=${tile.column}\n'
+          'postingNumber=$postingNumber\n'
+          'filename=$filename.${format.fileExtension}\n'
+          'tileIndex=${ordered.indexOf(tile)}\n',
+          mode: FileMode.append,
+        );
+        // ---- END TEMPORARY LOGGING ----
+
+        final exportReadyTile =
+            await InstagramCompatibilityService.letterboxForInstagram(tile.image);
         final bytes = await _imageToBytes(exportReadyTile, format: format, quality: quality);
 
         // ---- TEMPORARY DEBUG LOGGING ----
