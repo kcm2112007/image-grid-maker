@@ -1,13 +1,24 @@
 import 'dart:ui' as ui;
 
-/// A single generated tile with its grid position explicitly attached,
-/// so posting-number calculation and file saving always operate on
-/// the correct image — never on an assumption that a separate list of
-/// numbers still lines up with a separate list of images.
+/// The single authoritative numbering function used everywhere in the
+/// app — Preview, "Your Grids", filenames, and save order all call
+/// this exact function with the same inputs. row=0 is the top row,
+/// column=0 is the left column. Bottom-right always receives 1;
+/// numbering proceeds right-to-left, then moves up a row.
+int getGridNumber({
+  required int row,
+  required int column,
+  required int rows,
+  required int columns,
+}) {
+  return (rows - 1 - row) * columns + (columns - column);
+}
+
+/// A single generated tile with its grid position explicitly attached.
 class PositionedTile {
   final ui.Image image;
-  final int row; // 0-based, 0 = top row
-  final int column; // 0-based, 0 = left column
+  final int row;
+  final int column;
 
   const PositionedTile({
     required this.image,
@@ -15,10 +26,12 @@ class PositionedTile {
     required this.column,
   });
 
-  /// The number this tile must display and be saved under, per the
-  /// required posting order: start at bottom-right = 1, move right to
-  /// left, then bottom row upward.
   int postingNumber(int totalRows, int totalColumns) {
-    return (totalRows - 1 - row) * totalColumns + (totalColumns - column);
+    return getGridNumber(
+      row: row,
+      column: column,
+      rows: totalRows,
+      columns: totalColumns,
+    );
   }
 }
