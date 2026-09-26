@@ -59,16 +59,26 @@ class ExportService {
   /// then upward row by row. This never separates image data from
   /// its number: each tile computes its own number from its own
   /// row/column, then the list of complete tile objects is sorted.
+  /// Builds the save/share order by walking physical coordinates
+  /// directly — bottom row to top row, right to left within each row
+  /// — and looking up the exact tile at each coordinate. This never
+  /// sorts by a computed number; it fetches each tile by its real
+  /// row/column, so the tile fetched IS the tile whose number is used.
   static List<PositionedTile> _postingOrdered(
     List<PositionedTile> tiles, {
     required int rows,
     required int columns,
   }) {
-    final ordered = List<PositionedTile>.from(tiles);
-    ordered.sort((a, b) => a
-        .postingNumber(rows, columns)
-        .compareTo(b.postingNumber(rows, columns)));
-    return ordered;
+    final result = <PositionedTile>[];
+    for (int row = rows - 1; row >= 0; row--) {
+      for (int column = columns - 1; column >= 0; column--) {
+        final tile = tiles.firstWhere(
+          (t) => t.row == row && t.column == column,
+        );
+        result.add(tile);
+      }
+    }
+    return result;
   }
 
   static String _filenameFor(int postingNumber, int total) {
