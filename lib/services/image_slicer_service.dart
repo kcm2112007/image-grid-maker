@@ -1,11 +1,11 @@
+import 'dart:developer' as developer;
 import 'dart:ui' as ui;
 import '../models/positioned_tile.dart';
 
-/// Slices a single composited image into equal tiles. Each tile
-/// carries its own row/column from the moment it's created, so
-/// posting-number and filename logic always operates on tiles that
-/// know their true grid position — never on a bare list that could
-/// drift out of sync with a separately-tracked position.
+/// Slices a single composited image into equal tiles. Each tile's
+/// gridNumber is computed exactly once, right here, and attached
+/// permanently to the tile — no other part of the app ever
+/// recalculates or reassigns it.
 class ImageSlicerService {
   static Future<List<PositionedTile>> sliceImage(
     ui.Image source, {
@@ -36,7 +36,27 @@ class ImageSlicerService {
           tileHeight.round(),
         );
 
-        tiles.add(PositionedTile(image: tileImage, row: r, column: c));
+        final gridNumber = getGridNumber(row: r, column: c, rows: rows, columns: columns);
+
+        final tile = PositionedTile(
+          image: tileImage,
+          row: r,
+          column: c,
+          gridNumber: gridNumber,
+        );
+
+        // ---- TEMPORARY DEBUG LOGGING — remove after diagnosis ----
+        developer.log(
+          'CREATED_TILE\n'
+          'gridNumber=$gridNumber\n'
+          'row=$r\n'
+          'column=$c\n'
+          'imageIdentity=${identityHashCode(tileImage)}',
+          name: 'ImageGridMaker',
+        );
+        // ---- END TEMPORARY LOGGING ----
+
+        tiles.add(tile);
       }
     }
 
