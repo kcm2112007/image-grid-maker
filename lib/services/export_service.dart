@@ -1,3 +1,4 @@
+import 'dart:developer' as developer;
 import 'dart:io';
 import 'dart:typed_data';
 import 'dart:ui' as ui;
@@ -54,41 +55,23 @@ class ExportService {
     return Uint8List.fromList(jpgBytes);
   }
 
-  /// Sorts the actual tile objects (image + position together) by
-  /// their true posting number — bottom-right = 1, right-to-left,
-  /// then upward row by row. This never separates image data from
-  /// its number: each tile computes its own number from its own
-  /// row/column, then the list of complete tile objects is sorted.
-  /// Builds the save/share order by walking physical coordinates
-  /// directly — bottom row to top row, right to left within each row
-  /// — and looking up the exact tile at each coordinate. This never
-  /// sorts by a computed number; it fetches each tile by its real
-  /// row/column, so the tile fetched IS the tile whose number is used.
-  static List<PositionedTile> _postingOrdered(
-    List<PositionedTile> tiles, {
-    required int rows,
-    required int columns,
-  }) {
-    final result = <PositionedTile>[];
-    for (int row = rows - 1; row >= 0; row--) {
-      for (int column = columns - 1; column >= 0; column--) {
-        final tile = tiles.firstWhere(
-          (t) => t.row == row && t.column == column,
-        );
-        result.add(tile);
-      }
-    }
-    return result;
-  }
-
-  static String _filenameFor(int postingNumber, int total) {
+  static String _filenameFor(int gridNumber, int total) {
     final width = total.toString().length.clamp(2, 10);
-    return 'Grid_${postingNumber.toString().padLeft(width, '0')}';
+    return 'Grid_${gridNumber.toString().padLeft(width, '0')}';
   }
 
-  /// Saves tiles to the gallery in true posting-number order, one at
-  /// a time (never concurrently), so both the filename and the
-  /// MediaStore insertion sequence are fully deterministic.
+  /// Orders tiles purely by their own carried gridNumber — sorting a
+  /// list of already-numbered tiles, never recalculating the number
+  /// from position. Each tile's image and its gridNumber are the same
+  /// object; sorting cannot separate them.
+  static List<PositionedTile> _byGridNumber(List<PositionedTile> tiles) {
+    final ordered = List<PositionedTile>.from(tiles);
+    ordered.sort((a, b) => a.gridNumber.compareTo(b.gridNumber));
+    return ordered;
+  }
+
+  /// Saves tiles to the gallery, one at a time, filename taken
+  /// directly from each tile's own gridNumber.
   static Future<ExportResult> saveAllToGallery(
     List<PositionedTile> tiles, {
     required int rows,
@@ -110,32 +93,20 @@ class ExportService {
         }
       }
 
-      final ordered = _postingOrdered(tiles, rows: rows, columns: columns);
-
-      // ---- TEMPORARY DEBUG LOGGING — remove after diagnosis ----
-      final docsDir = await getApplicationDocumentsDirectory();
-      final logFile = File('${docsDir.path}/export_debug_log.txt');
-      await logFile.writeAsString(
-        'EXPORT SESSION\nrows=$rows columns=$columns totalTiles=${ordered.length}\n---\n',
-        mode: FileMode.write,
-      );
-      // ---- END TEMPORARY SETUP ----
+      final ordered = _byGridNumber(tiles);
 
       for (final tile in ordered) {
-        final postingNumber = tile.postingNumber(rows, columns);
-        final filename = _filenameFor(postingNumber, ordered.length);
+        final filename = _filenameFor(tile.gridNumber, ordered.length);
 
-        // ---- TEMPORARY DEBUG LOGGING ----
-        await logFile.writeAsString(
-          'EXPORT_TILE\n'
-          'rows=$rows\n'
-          'columns=$columns\n'
+        // ---- TEMPORARY DEBUG LOGGING — remove after diagnosis ----
+        developer.log(
+          'SAVING_TILE\n'
+          'gridNumber=${tile.gridNumber}\n'
           'row=${tile.row}\n'
           'column=${tile.column}\n'
-          'postingNumber=$postingNumber\n'
           'filename=$filename.${format.fileExtension}\n'
-          'tileIndex=${ordered.indexOf(tile)}\n',
-          mode: FileMode.append,
+          'imageIdentity=${identityHashCode(tile.image)}',
+          name: 'ImageGridMaker',
         );
         // ---- END TEMPORARY LOGGING ----
 
@@ -148,13 +119,6 @@ class ExportService {
           name: filename,
         );
         saved++;
-
-        // ---- TEMPORARY DEBUG LOGGING ----
-        await logFile.writeAsString(
-          'EXPORT_COMPLETE\nfilename=$filename.${format.fileExtension}\n---\n',
-          mode: FileMode.append,
-        );
-        // ---- END TEMPORARY LOGGING ----
       }
 
       return ExportResult(success: true, savedCount: saved);
@@ -169,9 +133,8 @@ class ExportService {
     }
   }
 
-  /// Writes tiles to a temp folder in the same true posting order and
-  /// filename convention as saveAllToGallery — Save and Share can
-  /// never disagree, since both call this same sorting logic.
+  /// Same gridNumber-driven ordering and filenames as saveAllToGallery
+  /// — Save and Share can never disagree.
   static Future<ExportResult> prepareFilesForSharing(
     List<PositionedTile> tiles, {
     required int rows,
@@ -181,15 +144,14 @@ class ExportService {
   }) async {
     try {
       final tempDir = await getTemporaryDirectory();
-      final ordered = _postingOrdered(tiles, rows: rows, columns: columns);
+      final ordered = _byGridNumber(tiles);
       final files = <File>[];
 
       for (final tile in ordered) {
-        final postingNumber = tile.postingNumber(rows, columns);
         final exportReadyTile =
             await InstagramCompatibilityService.letterboxForInstagram(tile.image);
         final bytes = await _imageToBytes(exportReadyTile, format: format, quality: quality);
-        final name = _filenameFor(postingNumber, ordered.length);
+        final name = _filenameFor(tile.gridNumber, ordered.length);
         final file = File('${tempDir.path}/$name.${format.fileExtension}');
         await file.writeAsBytes(bytes);
         files.add(file);
