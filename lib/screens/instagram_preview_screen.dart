@@ -125,10 +125,6 @@ class _InstagramPreviewScreenState extends State<InstagramPreviewScreen> {
                       itemCount: widget.tiles.length,
                       itemBuilder: (context, index) {
                         final tile = widget.tiles[index];
-                        final postingNumber = tile.postingNumber(
-                          widget.gridConfig.rows,
-                          widget.gridConfig.columns,
-                        );
                         return Stack(
                           fit: StackFit.expand,
                           children: [
@@ -146,7 +142,7 @@ class _InstagramPreviewScreenState extends State<InstagramPreviewScreen> {
                                 ),
                                 alignment: Alignment.center,
                                 child: Text(
-                                  '$postingNumber',
+                                  '${tile.gridNumber}',
                                   style: const TextStyle(
                                     color: Colors.black,
                                     fontWeight: FontWeight.bold,
