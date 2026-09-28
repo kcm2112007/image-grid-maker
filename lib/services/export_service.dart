@@ -93,7 +93,13 @@ class ExportService {
         }
       }
 
-      final ordered = _byGridNumber(tiles);
+      // Saved in descending gridNumber order (highest number first,
+      // Grid_01 saved last) so that if the device's Gallery/Files
+      // "Recents" view sorts by newest-first, Grid_01 receives the
+      // most recent timestamp and appears at the top — matching the
+      // intended visual order. This changes only save sequence;
+      // gridNumber, filenames, and tile identity are unaffected.
+      final ordered = _byGridNumber(tiles).reversed.toList();
 
       for (final tile in ordered) {
         final filename = _filenameFor(tile.gridNumber, ordered.length);
