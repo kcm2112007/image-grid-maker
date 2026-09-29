@@ -63,9 +63,11 @@ class RecentProjectsService {
     await file.writeAsString(jsonEncode(jsonList));
   }
 
-  /// Copies [sourceImage] into permanent storage and adds a new entry
-  /// at the top of the list. If this pushes the list past the cap,
-  /// the oldest entries (and their photo files) are deleted.
+  /// Copies [sourceImage] into permanent storage and adds a NEW entry
+  /// at the top of the list, with a freshly generated id. If this
+  /// pushes the list past the cap, the oldest entries (and their photo
+  /// files) are deleted. Use this only for a genuinely new project —
+  /// to update an existing one in place, use updateProject() instead.
   Future<void> saveProject({
     required File sourceImage,
     required String ratioId,
@@ -102,6 +104,56 @@ class RecentProjectsService {
 
     await _writeManifest(updated);
   }
+
+  /// Updates an EXISTING project in place — same id, refreshed photo,
+  /// ratio, layout, and recency timestamp. Used when a project was
+  /// reopened and re-positioned/re-exported, so it does not spawn a
+  /// second, duplicate project entry. Throws if no project with [id]
+  /// exists — callers must not silently fall back to saveProject() on
+  /// failure, since that would recreate the duplicate-project bug this
+  /// method exists to prevent.
+  Future<void> updateProject(
+    String id, {
+    required File sourceImage,
+    required String ratioId,
+    required String layoutId,
+  }) async {
+    final current = await loadAll();
+    final index = current.indexWhere((p) => p.id == id);
+    if (index == -1) {
+      throw Exception('Project not found: $id');
+    }
+
+    final oldProject = current[index];
+    final photosDir = await _photosDir();
+    final extension = sourceImage.path.split('.').last;
+    final destPath = '${photosDir.path}/$id.$extension';
+
+    await sourceImage.copy(destPath);
+
+    // If the file extension changed (e.g. different source format),
+    // the old copy would otherwise be left behind as an orphan file.
+    if (oldProject.imagePath != destPath) {
+      final oldFile = File(oldProject.imagePath);
+      if (await oldFile.exists()) {
+        await oldFile.delete();
+      }
+    }
+
+    final updatedProject = RecentProject(
+      id: id,
+      imagePath: destPath,
+      ratioId: ratioId,
+      layoutId: layoutId,
+      createdAtMillis: DateTime.now().millisecondsSinceEpoch,
+    );
+
+    final updated = List<RecentProject>.from(current);
+    updated[index] = updatedProject;
+
+    await _writeManifest(updated);
+  }
+
   /// Removes a single project: deletes its copied photo file and
   /// removes its entry from the manifest.
   Future<void> deleteProject(String id) async {
