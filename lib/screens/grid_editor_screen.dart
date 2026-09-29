@@ -9,7 +9,6 @@ import '../models/grid_config.dart';
 import '../models/grid_layout.dart';
 import '../services/image_service.dart';
 import '../services/image_slicer_service.dart';
-import '../models/positioned_tile.dart';
 import '../services/recent_projects_service.dart';
 import '../widgets/framing_canvas.dart';
 import '../widgets/layout_selector.dart';
@@ -22,11 +21,18 @@ class GridEditorScreen extends StatefulWidget {
   final String? initialRatioId;
   final String? initialLayoutId;
 
+  /// When set, this editing session belongs to an existing project —
+  /// completing positioning must update that same project (same id),
+  /// never create a new one. Null means this is a genuinely new
+  /// project, started fresh from Home → Create Grid.
+  final String? initialProjectId;
+
   const GridEditorScreen({
     super.key,
     this.initialImage,
     this.initialRatioId,
     this.initialLayoutId,
+    this.initialProjectId,
   });
 
   @override
@@ -45,10 +51,6 @@ class _GridEditorScreenState extends State<GridEditorScreen> {
   bool _isPicking = false;
   bool _isProcessing = false;
 
-  // The selected "Canvas shape" is the ratio of ONE tile — this
-  // GridConfig is the single place that derives the combined
-  // (whole-grid) ratio from it. Every screen that positions, previews,
-  // or exports reads from this, never recalculating the formula itself.
   GridConfig get _gridConfig => GridConfig(
         columns: _layout.columns,
         rows: _layout.rows,
@@ -121,10 +123,6 @@ class _GridEditorScreenState extends State<GridEditorScreen> {
       final devicePixelRatio = MediaQuery.of(context).devicePixelRatio;
       final captureRatio = devicePixelRatio.clamp(2.0, 4.0);
 
-      // The boundary is framed to the combined-grid shape, so slicing
-      // it evenly into columns × rows always yields tiles at exactly
-      // the user's selected tile aspect ratio — one shared pipeline,
-      // no per-screen recalculation.
       final ui.Image composedImage = await boundary.toImage(pixelRatio: captureRatio);
 
       final config = _gridConfig;
@@ -134,17 +132,44 @@ class _GridEditorScreenState extends State<GridEditorScreen> {
         columns: config.columns,
       );
 
-      try {
-        await _recentProjectsService.saveProject(
-          sourceImage: _pickedImage!,
-          ratioId: _ratio.id,
-          layoutId: _layout.id,
-        );
-      } catch (_) {
-        // Non-critical — proceed to the preview regardless.
+      // A reopened project (initialProjectId set) must be UPDATED in
+      // place, never re-saved as a new project — that would recreate
+      // the duplicate-project bug this branch exists to prevent. If
+      // the update fails, the export still completes below; only the
+      // project-list bookkeeping is affected, and we tell the user
+      // plainly rather than silently creating a duplicate as a
+      // fallback.
+      String? projectError;
+      if (widget.initialProjectId != null) {
+        try {
+          await _recentProjectsService.updateProject(
+            widget.initialProjectId!,
+            sourceImage: _pickedImage!,
+            ratioId: _ratio.id,
+            layoutId: _layout.id,
+          );
+        } catch (e) {
+          projectError = 'Could not update the saved project: $e';
+        }
+      } else {
+        try {
+          await _recentProjectsService.saveProject(
+            sourceImage: _pickedImage!,
+            ratioId: _ratio.id,
+            layoutId: _layout.id,
+          );
+        } catch (e) {
+          projectError = 'Could not save this project to Recent Projects: $e';
+        }
       }
 
       if (!mounted) return;
+
+      if (projectError != null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(projectError)),
+        );
+      }
 
       Navigator.push(
         context,
@@ -233,10 +258,6 @@ class _GridEditorScreenState extends State<GridEditorScreen> {
                       style: Theme.of(context).textTheme.bodySmall,
                     ),
                     const SizedBox(height: 16),
-                    // The frame shows the CORRECT combined composition
-                    // (tileAspectRatio × columns / rows) — e.g. wide
-                    // 2:1 for a 2:3 tile split 3×1 — not the tile's own
-                    // shape. This is the actual fix for the reported bug.
                     ConstrainedBox(
                       constraints: const BoxConstraints(maxHeight: 420),
                       child: Center(
