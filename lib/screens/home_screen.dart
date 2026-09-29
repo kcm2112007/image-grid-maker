@@ -54,6 +54,7 @@ class _HomeScreenState extends State<HomeScreen> {
           initialImage: File(project.imagePath),
           initialRatioId: project.ratioId,
           initialLayoutId: project.layoutId,
+          initialProjectId: project.id,
         ),
       ),
     ).then((_) => _loadRecentProjects());
