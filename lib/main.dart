@@ -2,18 +2,19 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'app.dart';
+import 'services/app_settings.dart';
 
-void main() {
+void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  await AppSettings.instance.load();
 
   MobileAds.instance.initialize();
 
-  // Locked to portrait since every screen's layout assumes it, and
-  // landscape has not been tested or designed for.
-  SystemChrome.setPreferredOrientations([
+  await SystemChrome.setPreferredOrientations([
     DeviceOrientation.portraitUp,
     DeviceOrientation.portraitDown,
-  ]).then((_) {
-    runApp(const ImageGridMakerApp());
-  });
+  ]);
+
+  runApp(const ImageGridMakerApp());
 }
