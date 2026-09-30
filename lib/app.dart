@@ -11,7 +11,13 @@ class ThemeController extends ValueNotifier<ThemeMode> {
   void setMode(ThemeMode mode) => value = mode;
 }
 
-final themeController = ThemeController()..setMode(AppSettings.instance.themeMode);
+class ImageGridMakerApp extends StatelessWidget {
+  const ImageGridMakerApp({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final themeController = ThemeController()
+      ..setMode(AppSettings.instance.themeMode);
 
     return ValueListenableBuilder<ThemeMode>(
       valueListenable: themeController,
