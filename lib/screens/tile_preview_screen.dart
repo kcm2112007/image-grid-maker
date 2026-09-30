@@ -7,6 +7,8 @@ import '../models/positioned_tile.dart';
 import '../services/ad_service.dart';
 import '../services/export_service.dart';
 import 'instagram_preview_screen.dart';
+import '../services/app_settings.dart';
+import '../services/haptics_service.dart';
 
 /// Shows the sliced tiles in their grid position, numbered in reading
 /// order (left-to-right, top-to-bottom) for display, with real
