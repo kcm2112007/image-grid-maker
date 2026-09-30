@@ -34,8 +34,13 @@ class _TilePreviewScreenState extends State<TilePreviewScreen> {
   bool _isSaving = false;
   bool _isSharing = false;
   bool _isWatchingRewardedAd = false;
-  ExportFormat _format = ExportFormat.png;
-  double _quality = 90;
+  // Initialized from Settings — user can still change either for
+  // this specific export via the existing selector/slider below,
+  // exactly as before. Settings only supplies the starting default.
+  ExportFormat _format = AppSettings.instance.exportFormat;
+  double _quality = AppSettings.instance.quality == AppQuality.high
+      ? 95
+      : AppSettings.instance.quality.value.toDouble();
 
   @override
   void initState() {
