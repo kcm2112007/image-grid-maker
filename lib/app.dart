@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'theme/app_theme.dart';
 import 'screens/home_screen.dart';
+import 'services/app_settings.dart';
 
 /// Holds the app's real, working theme-mode state.
 /// Settings screen mutates this; MaterialApp listens to it.
@@ -10,12 +11,7 @@ class ThemeController extends ValueNotifier<ThemeMode> {
   void setMode(ThemeMode mode) => value = mode;
 }
 
-class ImageGridMakerApp extends StatelessWidget {
-  const ImageGridMakerApp({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    final themeController = ThemeController();
+final themeController = ThemeController()..setMode(AppSettings.instance.themeMode);
 
     return ValueListenableBuilder<ThemeMode>(
       valueListenable: themeController,
