@@ -73,7 +73,8 @@ class _TilePreviewScreenState extends State<TilePreviewScreen> {
       return;
     }
 
-    if (result.success) {
+   if (result.success) {
+      HapticsService.trigger();
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('${result.savedCount} grid images saved in posting order.')),
       );
