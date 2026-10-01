@@ -11,6 +11,7 @@ import '../services/recent_projects_service.dart';
 import '../widgets/banner_ad_widget.dart';
 import 'grid_editor_screen.dart';
 import 'settings_screen.dart';
+import '../widgets/brand_icons.dart';
 
 class HomeScreen extends StatefulWidget {
   final ThemeController themeController;
