@@ -231,21 +231,31 @@ class _HomeScreenState extends State<HomeScreen> {
                     Text('Connect with us', style: Theme.of(context).textTheme.bodySmall),
                     const SizedBox(height: 8),
                     Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: kSocialLinks.map((link) {
-                        return Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 8),
-                          child: Tooltip(
-                            message: link.label,
-                            child: IconButton(
-                              icon: Icon(link.icon, size: 22),
-                              color: colorScheme.onSurfaceVariant,
-                              onPressed: () => _openLink(link.url),
-                            ),
-                          ),
-                        );
-                      }).toList(),
-                    ),
+  mainAxisAlignment: MainAxisAlignment.center,
+  children: kSocialLinks.map((link) {
+    Widget iconWidget;
+    switch (link.id) {
+      case 'whatsapp':
+        iconWidget = WhatsAppIcon(size: 22, color: colorScheme.onSurfaceVariant);
+        break;
+      case 'facebook':
+        iconWidget = FacebookIcon(size: 22, color: colorScheme.onSurfaceVariant);
+        break;
+      default:
+        iconWidget = Icon(link.icon, size: 22, color: colorScheme.onSurfaceVariant);
+    }
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 8),
+      child: Tooltip(
+        message: link.label,
+        child: IconButton(
+          icon: iconWidget,
+          onPressed: () => _openLink(link.url),
+        ),
+      ),
+    );
+  }).toList(),
+),
                   ],
                 ),
               ),
