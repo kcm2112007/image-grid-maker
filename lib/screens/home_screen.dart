@@ -1,5 +1,4 @@
 import 'dart:io';
-import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import '../app.dart';
 import '../models/canvas_ratio.dart';
@@ -11,7 +10,6 @@ import '../services/recent_projects_service.dart';
 import '../widgets/banner_ad_widget.dart';
 import 'grid_editor_screen.dart';
 import 'settings_screen.dart';
-import '../widgets/brand_icons.dart';
 
 class HomeScreen extends StatefulWidget {
   final ThemeController themeController;
@@ -232,31 +230,21 @@ class _HomeScreenState extends State<HomeScreen> {
                     Text('Connect with us', style: Theme.of(context).textTheme.bodySmall),
                     const SizedBox(height: 8),
                     Row(
-  mainAxisAlignment: MainAxisAlignment.center,
-  children: kSocialLinks.map((link) {
-    Widget iconWidget;
-    switch (link.id) {
-      case 'whatsapp':
-        iconWidget = WhatsAppIcon(size: 22, color: colorScheme.onSurfaceVariant);
-        break;
-      case 'facebook':
-        iconWidget = FacebookIcon(size: 22, color: colorScheme.onSurfaceVariant);
-        break;
-      default:
-        iconWidget = Icon(link.icon, size: 22, color: colorScheme.onSurfaceVariant);
-    }
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 8),
-      child: Tooltip(
-        message: link.label,
-        child: IconButton(
-          icon: iconWidget,
-          onPressed: () => _openLink(link.url),
-        ),
-      ),
-    );
-  }).toList(),
-),
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: kSocialLinks.map((link) {
+                        return Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 8),
+                          child: Tooltip(
+                            message: link.label,
+                            child: IconButton(
+                              icon: Icon(link.icon, size: 22),
+                              color: colorScheme.onSurfaceVariant,
+                              onPressed: () => _openLink(link.url),
+                            ),
+                          ),
+                        );
+                      }).toList(),
+                    ),
                   ],
                 ),
               ),
