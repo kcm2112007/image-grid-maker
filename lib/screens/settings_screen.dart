@@ -83,46 +83,59 @@ class _SettingsScreenState extends State<SettingsScreen> {
               ),
               const Divider(),
 
-              const _SectionHeader('Image Format'),
-              RadioListTile<ExportFormat>(
-                title: const Text('JPG'),
-                subtitle: const Text('Used as the default in Preview\'s export options'),
-                value: ExportFormat.jpg,
-                groupValue: AppSettings.instance.exportFormat,
-                onChanged: (f) => setState(() => AppSettings.instance.setExportFormat(f!)),
-              ),
-              RadioListTile<ExportFormat>(
-                title: const Text('PNG'),
-                value: ExportFormat.png,
-                groupValue: AppSettings.instance.exportFormat,
-                onChanged: (f) => setState(() => AppSettings.instance.setExportFormat(f!)),
-              ),
-              const Divider(),
+              // Image Format, Image Quality, and Haptic Feedback all
+              // listen to AppSettings directly, so they rebuild the
+              // instant notifyListeners() fires — after persistence
+              // completes, never guessing ahead of it via setState.
+              ListenableBuilder(
+                listenable: AppSettings.instance,
+                builder: (context, _) {
+                  return Column(
+                    children: [
+                      const _SectionHeader('Image Format'),
+                      RadioListTile<ExportFormat>(
+                        title: const Text('JPG'),
+                        subtitle: const Text('Used as the default in Preview\'s export options'),
+                        value: ExportFormat.jpg,
+                        groupValue: AppSettings.instance.exportFormat,
+                        onChanged: (f) => AppSettings.instance.setExportFormat(f!),
+                      ),
+                      RadioListTile<ExportFormat>(
+                        title: const Text('PNG'),
+                        value: ExportFormat.png,
+                        groupValue: AppSettings.instance.exportFormat,
+                        onChanged: (f) => AppSettings.instance.setExportFormat(f!),
+                      ),
+                      const Divider(),
 
-              const _SectionHeader('Image Quality'),
-              RadioListTile<AppQuality>(
-                title: const Text('High'),
-                subtitle: const Text('Applies to JPG export'),
-                value: AppQuality.high,
-                groupValue: AppSettings.instance.quality,
-                onChanged: (q) => setState(() => AppSettings.instance.setQuality(q!)),
-              ),
-              RadioListTile<AppQuality>(
-                title: const Text('Standard'),
-                subtitle: const Text('Smaller file size'),
-                value: AppQuality.standard,
-                groupValue: AppSettings.instance.quality,
-                onChanged: (q) => setState(() => AppSettings.instance.setQuality(q!)),
-              ),
-              const Divider(),
+                      const _SectionHeader('Image Quality'),
+                      RadioListTile<AppQuality>(
+                        title: const Text('High'),
+                        subtitle: const Text('Applies to JPG export'),
+                        value: AppQuality.high,
+                        groupValue: AppSettings.instance.quality,
+                        onChanged: (q) => AppSettings.instance.setQuality(q!),
+                      ),
+                      RadioListTile<AppQuality>(
+                        title: const Text('Standard'),
+                        subtitle: const Text('Smaller file size'),
+                        value: AppQuality.standard,
+                        groupValue: AppSettings.instance.quality,
+                        onChanged: (q) => AppSettings.instance.setQuality(q!),
+                      ),
+                      const Divider(),
 
-              const _SectionHeader('Haptic Feedback'),
-              SwitchListTile(
-                title: const Text('Vibrate on save/export'),
-                value: AppSettings.instance.hapticsEnabled,
-                onChanged: (v) => setState(() => AppSettings.instance.setHaptics(v)),
+                      const _SectionHeader('Haptic Feedback'),
+                      SwitchListTile(
+                        title: const Text('Vibrate on save/export'),
+                        value: AppSettings.instance.hapticsEnabled,
+                        onChanged: (v) => AppSettings.instance.setHaptics(v),
+                      ),
+                      const Divider(),
+                    ],
+                  );
+                },
               ),
-              const Divider(),
 
               const _SectionHeader('About'),
               ListTile(
