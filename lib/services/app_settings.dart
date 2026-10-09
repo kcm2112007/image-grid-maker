@@ -12,7 +12,9 @@ extension AppQualityValue on AppQuality {
 
 /// Single in-memory + persisted store for the app's four Settings
 /// values. Loaded once at startup (before runApp) so every screen can
-/// read current values synchronously; writes persist immediately.
+/// read current values synchronously; writes persist immediately and
+/// notify listeners once persistence completes, so any screen can
+/// listen via ListenableBuilder and rebuild at the correct time.
 class AppSettings extends ChangeNotifier {
   AppSettings._();
   static final AppSettings instance = AppSettings._();
@@ -49,28 +51,6 @@ class AppSettings extends ChangeNotifier {
     _loaded = true;
   }
 
-  Future<void> setThemeMode(ThemeMode mode) async {
-    themeMode = mode;
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setInt(_keyThemeMode, mode.index);
-  }
-
-  Future<void> setExportFormat(ExportFormat format) async {
-    exportFormat = format;
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(_keyExportFormat, format == ExportFormat.png ? 'png' : 'jpg');
-  }
-
-  Future<void> setQuality(AppQuality q) async {
-    quality = q;
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(_keyExportQuality, q == AppQuality.standard ? 'standard' : 'high');
-  }
-
-  Future<void> setHaptics(bool enabled) async {
-    hapticsEnabled = enabled;
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool(_keyHaptics, enabled);
   Future<void> setThemeMode(ThemeMode mode) async {
     themeMode = mode;
     final prefs = await SharedPreferences.getInstance();
