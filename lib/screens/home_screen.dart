@@ -216,25 +216,6 @@ class _HomeScreenState extends State<HomeScreen> {
                       label: const Text('Invite Friends'),
                       onPressed: () => LinkService.shareReferral(),
                     ),
-                    const SizedBox(height: 24),
-                    Text('Connect with us', style: Theme.of(context).textTheme.bodySmall),
-                    const SizedBox(height: 8),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: kSocialLinks.map((link) {
-                        return Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 8),
-                          child: Tooltip(
-                            message: link.label,
-                            child: IconButton(
-                              icon: Icon(link.icon, size: 22),
-                              color: colorScheme.onSurfaceVariant,
-                              onPressed: () => _openLink(link.url),
-                            ),
-                          ),
-                        );
-                      }).toList(),
-                    ),
                   ],
                 ),
               ),
