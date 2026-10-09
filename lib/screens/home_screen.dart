@@ -4,7 +4,6 @@ import '../app.dart';
 import '../models/canvas_ratio.dart';
 import '../models/grid_layout.dart';
 import '../models/recent_project.dart';
-import '../models/social_link.dart';
 import '../services/link_service.dart';
 import '../services/recent_projects_service.dart';
 import '../widgets/banner_ad_widget.dart';
@@ -96,15 +95,6 @@ class _HomeScreenState extends State<HomeScreen> {
       orElse: () => kGridLayouts[1],
     );
     return '${ratio.label} · ${layout.label}';
-  }
-
-  Future<void> _openLink(String url) async {
-    final ok = await LinkService.openUrl(url);
-    if (!ok && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Could not open that link.')),
-      );
-    }
   }
 
   @override
