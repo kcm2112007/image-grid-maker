@@ -127,18 +127,15 @@ class RecentProjectsService {
     final oldProject = current[index];
     final photosDir = await _photosDir();
     final extension = sourceImage.path.split('.').last;
-    final destPath = '${photosDir.path}/$id.$extension';
+    // A fresh, unique filename per update — never overwrite the old
+    // file in place. Reusing the same path let a thumbnail read race
+    // against an in-progress write, and let Flutter's FileImage cache
+    // (keyed only by path) keep serving stale/partial bytes after an
+    // update. A new path sidesteps both.
+    final newFileId = DateTime.now().microsecondsSinceEpoch.toString();
+    final destPath = '${photosDir.path}/$newFileId.$extension';
 
     await sourceImage.copy(destPath);
-
-    // If the file extension changed (e.g. different source format),
-    // the old copy would otherwise be left behind as an orphan file.
-    if (oldProject.imagePath != destPath) {
-      final oldFile = File(oldProject.imagePath);
-      if (await oldFile.exists()) {
-        await oldFile.delete();
-      }
-    }
 
     final updatedProject = RecentProject(
       id: id,
@@ -151,7 +148,14 @@ class RecentProjectsService {
     final updated = List<RecentProject>.from(current);
     updated[index] = updatedProject;
 
+    // Manifest is written first, so the app never points at the old
+    // file after this; only then is the old file safe to delete.
     await _writeManifest(updated);
+
+    final oldFile = File(oldProject.imagePath);
+    if (await oldFile.exists()) {
+      await oldFile.delete();
+    }
   }
 
   /// Removes a single project: deletes its copied photo file and
