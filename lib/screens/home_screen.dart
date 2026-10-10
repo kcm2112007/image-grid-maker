@@ -401,6 +401,12 @@ class _ProjectCard extends StatelessWidget {
             Expanded(
               child: Image.file(
                 File(project.imagePath),
+                // Keyed to the path itself, so a project update (which
+                // now always produces a new file path) is never
+                // mistaken for "the same image" by Flutter's widget
+                // reconciliation — this forces a genuinely fresh
+                // decode instead of reusing a stale cached frame.
+                key: ValueKey(project.imagePath),
                 fit: BoxFit.cover,
                 width: double.infinity,
                 errorBuilder: (context, error, stackTrace) {
