@@ -59,6 +59,12 @@ dev_dependencies:
 
 # The following section is specific to Flutter packages.
 flutter:
+flutter_launcher_icons:
+  android: true
+  image_path: "assets/icon/icon.png"
+  adaptive_icon_background: "#3B6FE0"
+  adaptive_icon_foreground: "assets/icon/icon_foreground.png"
+  min_sdk_android: 21
 
   # The following line ensures that the Material Icons font is
   # included with your application, so that you can use the icons in
